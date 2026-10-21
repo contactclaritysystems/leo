@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Léo – Ton Prof</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #1e293b;
+    padding: 14px 16px;
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 600;
+    border-bottom: 1px solid #334155;
+  }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    line-height: 1.45;
+    word-wrap: break-word;
+  }
+  .user {
+    align-self: flex-end;
+    background: #3b82f6;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .leo {
+    align-self: flex-start;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-bottom-left-radius: 4px;
+  }
+  .leo strong { color: #93c5fd; }
+  #input-area {
+    padding: 12px;
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  #message {
+    flex: 1;
+    background: #0f172a;
+    border: 1px solid #475569;
+    border-radius: 20px;
+    padding: 12px 16px;
+    color: white;
+    font-size: 16px;
+    resize: none;
+    max-height: 120px;
+  }
+  button {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  button:disabled { opacity: 0.5; }
+  #api-key-screen button {
+    border-radius: 12px !important;
+    width: auto !important;
+    padding: 14px 32px !important;
+    font-size: 16px !important;
+    margin-top: 8px;
+  }
+  #api-key-screen {
+    position: fixed;
+    inset: 0;
+    background: #0f172a;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    z-index: 10;
+  }
+  #api-key-screen input {
+    width: 100%;
+    max-width: 400px;
+    padding: 14px;
+    margin: 16px 0;
+    border-radius: 12px;
+    border: 1px solid #475569;
+    background: #1e293b;
+    color: white;
+    font-size: 16px;
+  }
+  .hidden { display: none !important; }
+  img.preview {
+    max-width: 200px;
+    border-radius: 12px;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div id="api-key-screen">
+  <h2>Bienvenue avec Léo</h2>
+  <p style="margin-top:12px; text-align:center; max-width:400px;">
+    Entre ta clé API OpenAI (celle que tu utilises déjà avec Clarity).<br>
+    Elle reste uniquement sur ton téléphone.
+  </p>
+  <input type="password" id="apiKeyInput" placeholder="sk-...">
+  <button id="saveKey" style="border-radius:12px; width:auto; padding:0 24px;">Continuer</button>
+</div>
+
+<header>Léo</header>
+
+<div id="chat"></div>
+
+<div id="input-area">
+  <button id="photo-btn" title="Envoyer une photo">📷</button>
+  <textarea id="message" rows="1" placeholder="Écris ou parle à Léo..."></textarea>
+  <button id="send">➤</button>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
+
+<script>
+const SYSTEM_PROMPT = `Tu t'appelles Léo. Tu es le professeur personnel des enfants de cette famille. Tu es patient, chaleureux, clair et encourageant. Tu adaptes toujours ton langage et tes explications à l'âge de l'enfant (environ 5 ans ou 9 ans).
+
+Règles pédagogiques importantes :
+- Tu ne donnes jamais la réponse complète tout de suite. Tu guides l'enfant étape par étape pour qu'il trouve lui-même.
+- Tu poses des questions simples, tu proposes des indices, tu félicites les efforts et les bonnes idées.
+- Si l'enfant bloque vraiment, tu expliques plus clairement, mais toujours en l'invitant à réfléchir avec toi.
+- Tu adaptes la difficulté en temps réel selon ses réponses.
+- Tu restes positif et motivant, même quand il se trompe.
+
+Quand l'enfant envoie une photo (devoir, exercice, cahier, etc.) :
+- Tu regardes attentivement la photo.
+- Tu identifies le type d'exercice et le niveau.
+- Tu commences par demander à l'enfant ce qu'il a déjà essayé ou ce qu'il ne comprend pas.
+- Ensuite tu le guides pas à pas, sans tout résoudre à sa place.
+- Si la photo est floue ou incomplète, tu le dis gentiment et tu demandes ce dont il a besoin.
+
+Style de réponse :
+- Phrases courtes et claires, surtout avec le plus jeune.
+- Tu peux utiliser un peu d'humour léger et des encouragements sincères.
+- Tu proposes souvent de continuer ensemble.
+- Tu te souviens des progrès et des difficultés rencontrées dans la conversation.
+
+Sécurité :
+- Tu restes toujours bienveillant et adapté aux enfants.
+- Tu ne parles pas de sujets inappropriés.
+- Si l'enfant est fatigué ou frustré, tu proposes de faire une pause ou de changer d'activité.
+
+Tu es Léo, leur professeur. Tu les aides à progresser avec plaisir et confiance.`;
+
+let apiKey = localStorage.getItem('openai_api_key') || '';
+let messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+let currentImage = null;
+
+const apiScreen = document.getElementById('api-key-screen');
+const chat = document.getElementById('chat');
+const messageInput = document.getElementById('message');
+const sendBtn = document.getElementById('send');
+const photoBtn = document.getElementById('photo-btn');
+const fileInput = document.getElementById('fileInput');
+
+if (apiKey) apiScreen.classList.add('hidden');
+
+document.getElementById('saveKey').addEventListener('click', () => {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) {
+    alert('Entre ta clé API');
+    return;
+  }
+  if (!key.startsWith('sk-')) {
+    alert('La clé doit commencer par sk-');
+    return;
+  }
+  apiKey = key;
+  try {
+    localStorage.setItem('openai_api_key', apiKey);
+  } catch (e) {
+    alert('Impossible de sauvegarder la clé. Essaie avec Chrome.');
+  }
+  apiScreen.classList.add('hidden');
+  addMessage('leo', 'Salut ! Je suis Léo. Tu peux m’écrire ou m’envoyer une photo de ton devoir. On va travailler ensemble !');
+});
+
+function addMessage(who, text, imgSrc = null) {
+  const div = document.createElement('div');
+  div.className = `msg ${who}`;
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.className = 'preview';
+    div.appendChild(img);
+    div.appendChild(document.createElement('br'));
+  }
+  const span = document.createElement('span');
+  span.innerHTML = text.replace(/\n/g, '<br>');
+  div.appendChild(span);
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+photoBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    currentImage = reader.result;
+    addMessage('user', '📷 Photo envoyée', currentImage);
+    sendMessage();
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
+};
+
+sendBtn.onclick = () => sendMessage();
+messageInput.onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+};
+
+async function sendMessage() {
+  const text = messageInput.value.trim();
+  if (!text && !currentImage) return;
+
+  if (text) addMessage('user', text);
+  messageInput.value = '';
+  messageInput.style.height = 'auto';
+
+  const content = [];
+  if (text) content.push({ type: 'text', text });
+  if (currentImage) {
+    content.push({
+      type: 'image_url',
+      image_url: { url: currentImage }
+    });
+  }
+
+  messages.push({ role: 'user', content: content.length === 1 && content[0].type === 'text' ? text : content });
+  currentImage = null;
+
+  sendBtn.disabled = true;
+  addMessage('leo', '<em>Léo réfléchit...</em>');
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: messages,
+        max_tokens: 500,
+        temperature: 0.7
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || 'Erreur API');
+    }
+
+    const data = await res.json();
+    const reply = data.choices[0].message.content;
+
+    // Remove "réfléchit" message
+    chat.lastChild.remove();
+    addMessage('leo', reply);
+
+    messages.push({ role: 'assistant', content: reply });
+  } catch (err) {
+    chat.lastChild.remove();
+    addMessage('leo', 'Oups, j’ai eu un petit problème. Vérifie ta connexion ou ta clé API. (' + err.message + ')');
+  }
+
+  sendBtn.disabled = false;
+}
+
+// Auto-resize textarea
+messageInput.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// Welcome if key already saved
+if (apiKey) {
+  setTimeout(() => {
+    addMessage('leo', 'Salut ! Je suis Léo. Tu peux m’écrire ou m’envoyer une photo de ton devoir. On va travailler ensemble !');
+  }, 300);
+}
+</script>
+</body>
+</html>
