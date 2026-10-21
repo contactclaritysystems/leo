@@ -28,112 +28,103 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
-const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
+(function() {
+  const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
+  const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
 
-const chat = document.getElementById('chat');
-const messageInput = document.getElementById('message');
-const sendBtn = document.getElementById('send');
-const welcome = document.getElementById('welcome');
+  const chat = document.getElementById('chat');
+  const messageInput = document.getElementById('message');
+  const sendBtn = document.getElementById('send');
+  const welcome = document.getElementById('welcome');
 
-const SYSTEM = `Tu es Léo, professeur bienveillant pour enfants (environ 5-10 ans).
-- Au début, demande le prénom ET l'âge si tu ne les connais pas.
-- Sois naturel, pas trop de questions d'affilée.
-- Pour les divisions, montre la VRAIE pose comme à l'école française. Exemple pour 12 divisé par 3 :
+  const SYSTEM = "Tu es Léo, professeur bienveillant pour enfants. Demande le prénom et l'âge au début. Pour les divisions, montre la pose claire comme à l'école (sans backticks). Guide sans donner la réponse directement. Sois concis.";
 
-   ______
-12 | 3
+  let messages = [{ role: 'system', content: SYSTEM }];
+  let currentChild = null;
+  let sb = null;
 
-Ou :
-
-  12 | 3
-     |___
-
-Guide l'enfant pour remplir la pose étape par étape. Tu peux aussi lui demander de la dessiner et d'envoyer une photo.
-- Guide sans donner la réponse directement.
-- Adapte-toi à l'âge.`;
-
-let messages = [{ role: 'system', content: SYSTEM }];
-let currentChild = null;
-let supabaseClient = null;
-
-if (window.supabase) {
-  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  supabaseClient.from('children').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
-    .then(function(res) {
-      if (res.data && res.data.name) {
-        currentChild = res.data;
-        welcome.textContent = 'Salut ' + res.data.name + ' !';
-        messages[0].content += '\\nEnfant connu : ' + res.data.name + (res.data.age ? ', ' + res.data.age + ' ans' : '');
-      }
-    });
-}
-
-function addMessage(who, text) {
-  var div = document.createElement('div');
-  div.className = 'msg ' + who;
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function sendMessage() {
-  var text = messageInput.value.trim();
-  if (!text) return;
-  addMessage('user', text);
-  messageInput.value = '';
-  messages.push({ role: 'user', content: text });
-
-  // Sauvegarde enfant
-  if (!currentChild && supabaseClient) {
-    var nameMatch = text.match(/([A-Za-zÀ-ÿ]{2,})/);
-    var ageMatch = text.match(/(\\d+)\\s*ans/);
-    if (nameMatch) {
-      var payload = { name: nameMatch[1] };
-      if (ageMatch) payload.age = parseInt(ageMatch[1]);
-      supabaseClient.from('children').insert(payload).select().single().then(function(res) {
-        if (res.data) {
-          currentChild = res.data;
-          supabaseClient.from('messages').insert({ child_id: currentChild.id, role: 'user', content: text });
-        }
-      });
-    }
-  } else if (currentChild && supabaseClient) {
-    supabaseClient.from('messages').insert({ child_id: currentChild.id, role: 'user', content: text });
+  if (window.supabase) {
+    try {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      sb.from('children').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
+        .then(function(res) {
+          if (res.data && res.data.name) {
+            currentChild = res.data;
+            if (welcome) welcome.textContent = 'Salut ' + res.data.name + ' !';
+          }
+        });
+    } catch (e) {}
   }
 
-  addMessage('leo', '...');
-  fetch(FUNCTION_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-    body: JSON.stringify({ messages: messages })
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (chat.lastChild) chat.lastChild.remove();
-    var reply = (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : "D'accord.";
-    addMessage('leo', reply);
-    messages.push({ role: 'assistant', content: reply });
-    if (currentChild && supabaseClient) {
-      supabaseClient.from('messages').insert({ child_id: currentChild.id, role: 'assistant', content: reply });
-    }
-  })
-  .catch(function() {
-    if (chat.lastChild) chat.lastChild.remove();
-    addMessage('leo', 'Petit souci, réessaie.');
-  });
-}
+  function addMessage(who, text) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + who;
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
 
-if (sendBtn) sendBtn.addEventListener('click', sendMessage);
-if (messageInput) {
-  messageInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  function sendMessage() {
+    const text = messageInput.value.trim();
+    if (!text) return;
+    addMessage('user', text);
+    messageInput.value = '';
+    messages.push({ role: 'user', content: text });
+
+    if (sb && !currentChild) {
+      const nameMatch = text.match(/([A-Za-zÀ-ÿ]{2,})/);
+      const ageMatch = text.match(/(\d+)/);
+      if (nameMatch) {
+        const payload = { name: nameMatch[1] };
+        if (ageMatch) payload.age = parseInt(ageMatch[1], 10);
+        sb.from('children').insert(payload).select().single().then(function(res) {
+          if (res.data) currentChild = res.data;
+        });
+      }
     }
-  });
-}
+
+    addMessage('leo', '...');
+
+    fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ messages: messages })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (chat.lastChild) chat.lastChild.remove();
+      const reply = (data.choices && data.choices[0] && data.choices[0].message)
+        ? data.choices[0].message.content
+        : "D'accord.";
+      addMessage('leo', reply);
+      messages.push({ role: 'assistant', content: reply });
+      if (sb && currentChild) {
+        sb.from('messages').insert({ child_id: currentChild.id, role: 'user', content: text });
+        sb.from('messages').insert({ child_id: currentChild.id, role: 'assistant', content: reply });
+      }
+    })
+    .catch(function() {
+      if (chat.lastChild) chat.lastChild.remove();
+      addMessage('leo', 'Problème de connexion.');
+    });
+  }
+
+  if (sendBtn) {
+    sendBtn.addEventListener('click', sendMessage);
+  }
+  if (messageInput) {
+    messageInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+})();
 </script>
 </body>
 </html>
