@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Léo – Ton Prof</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
@@ -31,28 +30,8 @@
 </div>
 <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
-const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-const BASE_PROMPT = `Tu t'appelles Léo. Tu es le professeur personnel des enfants de cette famille. Tu es patient, chaleureux, clair, encourageant et un peu joueur, mais tu restes avant tout un professeur.
-Tu adaptes toujours ton langage, tes exemples et la difficulté à l'âge de l'enfant.
-Règles pédagogiques :
-- Tu ne donnes jamais la réponse complète tout de suite. Tu guides étape par étape.
-- Tu poses des questions, tu proposes des indices, tu valorises la réflexion.
-- Même avec une bonne réponse, demande comment l'enfant a fait avant de valider.
-- Tu peux jouer, mais reviens régulièrement vers quelque chose d'utile.
-Mémoire : Utilise les informations connues sur l'enfant.
-Quand une photo est envoyée : regarde-la, demande ce qui bloque, guide pas à pas.
-Tu es Léo.`;
-
-let messages = [{ role: 'system', content: BASE_PROMPT }];
-let currentImage = null;
-let currentChild = null;
-
 const chat = document.getElementById('chat');
 const messageInput = document.getElementById('message');
 const sendBtn = document.getElementById('send');
@@ -61,7 +40,7 @@ const fileInput = document.getElementById('fileInput');
 
 function addMessage(who, text, imgSrc = null) {
   const div = document.createElement('div');
-  div.className = `msg ${who}`;
+  div.className = 'msg ' + who;
   if (imgSrc) {
     const img = document.createElement('img');
     img.src = imgSrc;
@@ -70,38 +49,30 @@ function addMessage(who, text, imgSrc = null) {
     div.appendChild(document.createElement('br'));
   }
   const span = document.createElement('span');
-  span.innerHTML = text.replace(/\n/g, '<br>');
+  span.innerHTML = String(text).replace(/\n/g, '<br>');
   div.appendChild(span);
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-// Message immédiat
+// === MESSAGE IMMÉDIAT ===
 addMessage('leo', 'Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?');
 
-// Chargement du profil en arrière-plan
-supabase.from('children').select('*').limit(1).single().then(({ data }) => {
-  if (data && data.name) {
-    currentChild = data;
-    chat.innerHTML = '';
-    addMessage('leo', `Salut ${data.name} ! Content de te revoir. Qu’est-ce qu’on fait aujourd’hui ?`);
-    messages = [{ role: 'system', content: BASE_PROMPT + `\n\nEnfant : ${data.name}, ${data.age || '?'} ans.` }];
-  }
-}).catch(() => {});
+// === CONFIG ===
+const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
+const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
 
-photoBtn.onclick = () => fileInput.click();
-fileInput.onchange = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    currentImage = reader.result;
-    addMessage('user', '📷 Photo envoyée', currentImage);
-    sendMessage();
-  };
-  reader.readAsDataURL(file);
-  fileInput.value = '';
-};
+let supabase = null;
+let messages = [{ role: 'system', content: 'Tu es Léo, un professeur patient et encourageant pour enfants. Guide sans donner la réponse directement.' }];
+let currentImage = null;
+let currentChild = null;
+
+try {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (e) {
+  console.warn('Supabase non disponible');
+}
 
 function sendMessage() {
   const text = messageInput.value.trim();
@@ -111,63 +82,70 @@ function sendMessage() {
   messageInput.value = '';
   messageInput.style.height = 'auto';
 
-  const content = [];
-  if (text) content.push({ type: 'text', text });
-  if (currentImage) content.push({ type: 'image_url', image_url: { url: currentImage } });
+  const userContent = currentImage
+    ? [{ type: 'text', text: text || 'Regarde cette photo' }, { type: 'image_url', image_url: { url: currentImage } }]
+    : text;
 
-  messages.push({ role: 'user', content: content.length === 1 ? text : content });
+  messages.push({ role: 'user', content: userContent });
   currentImage = null;
 
-  // Capture nom/âge simple
-  if (text && !currentChild) {
-    const m = text.match(/([a-zA-ZÀ-ÿ]+).*?(\d+)/);
-    if (m) {
-      supabase.from('children').insert({ name: m[1], age: parseInt(m[2]) }).select().single().then(({ data }) => {
-        if (data) currentChild = data;
-      });
-    }
-  }
-
   sendBtn.disabled = true;
-  addMessage('leo', '<em>Léo réfléchit...</em>');
+  addMessage('leo', 'Léo réfléchit...');
 
   fetch(FUNCTION_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
     },
     body: JSON.stringify({ messages })
   })
   .then(r => r.json())
   .then(data => {
-    chat.lastChild.remove();
-    const reply = data.choices?.[0]?.message?.content || 'Désolé, je n’ai pas compris.';
+    if (chat.lastChild) chat.lastChild.remove();
+    const reply = data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content
+      : 'Désolé, je n’ai pas pu répondre.';
     addMessage('leo', reply);
     messages.push({ role: 'assistant', content: reply });
-    if (currentChild) {
-      supabase.from('messages').insert({ child_id: currentChild.id, role: 'assistant', content: reply });
-    }
   })
-  .catch(() => {
-    chat.lastChild.remove();
-    addMessage('leo', 'Oups, problème de connexion. Réessaie.');
+  .catch(err => {
+    if (chat.lastChild) chat.lastChild.remove();
+    addMessage('leo', 'Problème de connexion. Réessaie dans un instant.');
+    console.error(err);
   })
-  .finally(() => sendBtn.disabled = false);
+  .finally(() => {
+    sendBtn.disabled = false;
+  });
 }
 
 sendBtn.onclick = sendMessage;
-messageInput.onkeydown = (e) => {
+
+messageInput.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
   }
-};
+});
 
 messageInput.addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
+
+photoBtn.onclick = () => fileInput.click();
+fileInput.onchange = function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    currentImage = reader.result;
+    addMessage('user', '📷 Photo envoyée', currentImage);
+    sendMessage();
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
+};
 </script>
 </body>
 </html>
