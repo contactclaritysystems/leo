@@ -112,7 +112,7 @@ function sendMessage() {
   .then(function(r) { return r.json(); })
   .then(function(data) {
     if (chat.lastChild) chat.lastChild.remove();
-    var reply = (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : 'D\\'accord.';
+    var reply = (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : "D'accord.";
     addMessage('leo', reply);
     messages.push({ role: 'assistant', content: reply });
     if (currentChild && supabaseClient) {
@@ -125,13 +125,15 @@ function sendMessage() {
   });
 }
 
-sendBtn.onclick = sendMessage;
-messageInput.onkeydown = function(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-};
+if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+if (messageInput) {
+  messageInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+}
 </script>
 </body>
 </html>
