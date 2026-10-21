@@ -2,150 +2,42 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Léo – Ton Prof</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
-  header { background: #1e293b; padding: 14px 16px; text-align: center; font-size: 1.4rem; font-weight: 600; border-bottom: 1px solid #334155; }
-  #chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; line-height: 1.45; word-wrap: break-word; }
-  .user { align-self: flex-end; background: #3b82f6; color: white; border-bottom-right-radius: 4px; }
-  .leo { align-self: flex-start; background: #1e293b; border: 1px solid #334155; border-bottom-left-radius: 4px; }
-  #input-area { padding: 12px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 8px; align-items: flex-end; }
-  #message { flex: 1; background: #0f172a; border: 1px solid #475569; border-radius: 20px; padding: 12px 16px; color: white; font-size: 16px; resize: none; max-height: 120px; }
-  button { background: #3b82f6; color: white; border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 20px; cursor: pointer; flex-shrink: 0; }
-  button:disabled { opacity: 0.5; }
-  #photo-btn { background: #475569; }
-  img.preview { max-width: 200px; border-radius: 12px; margin-top: 8px; }
+  body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #1e293b; padding: 14px; text-align: center; font-size: 1.4rem; }
+  #chat { flex: 1; padding: 16px; overflow-y: auto; }
+  .leo { background: #1e293b; padding: 12px 16px; border-radius: 18px; max-width: 80%; margin-bottom: 12px; }
+  #input-area { padding: 12px; background: #1e293b; display: flex; gap: 8px; }
+  input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #475569; background: #0f172a; color: white; }
+  button { width: 48px; height: 48px; border-radius: 50%; background: #3b82f6; color: white; border: none; font-size: 20px; }
 </style>
 </head>
 <body>
 <header>Léo</header>
-<div id="chat"></div>
-<div id="input-area">
-  <button id="photo-btn">📷</button>
-  <textarea id="message" rows="1" placeholder="Écris à Léo..."></textarea>
-  <button id="send">➤</button>
+<div id="chat">
+  <div class="leo">Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?</div>
 </div>
-<input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
+<div id="input-area">
+  <input id="message" placeholder="Écris à Léo...">
+  <button onclick="send()">➤</button>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const chat = document.getElementById('chat');
-const messageInput = document.getElementById('message');
-const sendBtn = document.getElementById('send');
-const photoBtn = document.getElementById('photo-btn');
-const fileInput = document.getElementById('fileInput');
-
-function addMessage(who, text, imgSrc = null) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + who;
-  if (imgSrc) {
-    const img = document.createElement('img');
-    img.src = imgSrc;
-    img.className = 'preview';
-    div.appendChild(img);
-    div.appendChild(document.createElement('br'));
-  }
-  const span = document.createElement('span');
-  span.innerHTML = String(text).replace(/\n/g, '<br>');
-  div.appendChild(span);
-  chat.appendChild(div);
+function send() {
+  const input = document.getElementById('message');
+  const text = input.value.trim();
+  if (!text) return;
+  const chat = document.getElementById('chat');
+  chat.innerHTML += '<div style="text-align:right; margin:8px 0;"><span style="background:#3b82f6; color:white; padding:10px 14px; border-radius:18px; display:inline-block;">' + text + '</span></div>';
+  input.value = '';
+  chat.innerHTML += '<div class="leo">Je réfléchis...</div>';
   chat.scrollTop = chat.scrollHeight;
 }
-
-// === MESSAGE IMMÉDIAT ===
-addMessage('leo', 'Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?');
-
-// === CONFIG ===
-const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
-const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
-
-let supabase = null;
-let messages = [{ role: 'system', content: 'Tu es Léo, un professeur patient et encourageant pour enfants. Guide sans donner la réponse directement.' }];
-let currentImage = null;
-let currentChild = null;
-
-try {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} catch (e) {
-  console.warn('Supabase non disponible');
-}
-
-function sendMessage() {
-  const text = messageInput.value.trim();
-  if (!text && !currentImage) return;
-
-  if (text) addMessage('user', text);
-  messageInput.value = '';
-  messageInput.style.height = 'auto';
-
-  const userContent = currentImage
-    ? [{ type: 'text', text: text || 'Regarde cette photo' }, { type: 'image_url', image_url: { url: currentImage } }]
-    : text;
-
-  messages.push({ role: 'user', content: userContent });
-  currentImage = null;
-
-  sendBtn.disabled = true;
-  addMessage('leo', 'Léo réfléchit...');
-
-  fetch(FUNCTION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-    },
-    body: JSON.stringify({ messages })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (chat.lastChild) chat.lastChild.remove();
-    const reply = data.choices && data.choices[0] && data.choices[0].message
-      ? data.choices[0].message.content
-      : 'Désolé, je n’ai pas pu répondre.';
-    addMessage('leo', reply);
-    messages.push({ role: 'assistant', content: reply });
-  })
-  .catch(err => {
-    if (chat.lastChild) chat.lastChild.remove();
-    addMessage('leo', 'Problème de connexion. Réessaie dans un instant.');
-    console.error(err);
-  })
-  .finally(() => {
-    sendBtn.disabled = false;
-  });
-}
-
-sendBtn.onclick = sendMessage;
-
-messageInput.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+document.getElementById('message').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') send();
 });
-
-messageInput.addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
-
-photoBtn.onclick = () => fileInput.click();
-fileInput.onchange = function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function() {
-    currentImage = reader.result;
-    addMessage('user', '📷 Photo envoyée', currentImage);
-    sendMessage();
-  };
-  reader.readAsDataURL(file);
-  fileInput.value = '';
-};
 </script>
 </body>
 </html>
