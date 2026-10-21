@@ -133,7 +133,13 @@ function getSystemPrompt() {
 }
 
 async function initConversation() {
-  currentChild = await loadOrCreateChild();
+  try {
+    currentChild = await loadOrCreateChild();
+  } catch (e) {
+    console.error(e);
+    currentChild = null;
+  }
+
   messages = [{ role: 'system', content: getSystemPrompt() }];
 
   if (!currentChild || !currentChild.name) {
