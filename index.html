@@ -2,42 +2,149 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Léo – Ton Prof</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; height: 100vh; display: flex; flex-direction: column; }
-  header { background: #1e293b; padding: 14px; text-align: center; font-size: 1.4rem; }
-  #chat { flex: 1; padding: 16px; overflow-y: auto; }
-  .leo { background: #1e293b; padding: 12px 16px; border-radius: 18px; max-width: 80%; margin-bottom: 12px; }
-  #input-area { padding: 12px; background: #1e293b; display: flex; gap: 8px; }
-  input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #475569; background: #0f172a; color: white; }
-  button { width: 48px; height: 48px; border-radius: 50%; background: #3b82f6; color: white; border: none; font-size: 20px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #1e293b; padding: 14px 16px; text-align: center; font-size: 1.4rem; font-weight: 600; border-bottom: 1px solid #334155; }
+  #chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; line-height: 1.45; word-wrap: break-word; }
+  .user { align-self: flex-end; background: #3b82f6; color: white; border-bottom-right-radius: 4px; }
+  .leo { align-self: flex-start; background: #1e293b; border: 1px solid #334155; border-bottom-left-radius: 4px; }
+  #input-area { padding: 12px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 8px; align-items: flex-end; }
+  #message { flex: 1; background: #0f172a; border: 1px solid #475569; border-radius: 20px; padding: 12px 16px; color: white; font-size: 16px; resize: none; max-height: 120px; }
+  button { background: #3b82f6; color: white; border: none; border-radius: 50%; width: 48px; height: 48px; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+  button:disabled { opacity: 0.5; }
+  #photo-btn { background: #475569; }
+  img.preview { max-width: 200px; border-radius: 12px; margin-top: 8px; }
 </style>
 </head>
 <body>
 <header>Léo</header>
-<div id="chat">
-  <div class="leo">Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?</div>
-</div>
+<div id="chat"></div>
 <div id="input-area">
-  <input id="message" placeholder="Écris à Léo...">
-  <button onclick="send()">➤</button>
+  <button id="photo-btn">📷</button>
+  <textarea id="message" rows="1" placeholder="Écris à Léo..."></textarea>
+  <button id="send">➤</button>
 </div>
+<input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
 
 <script>
-function send() {
-  const input = document.getElementById('message');
-  const text = input.value.trim();
-  if (!text) return;
-  const chat = document.getElementById('chat');
-  chat.innerHTML += '<div style="text-align:right; margin:8px 0;"><span style="background:#3b82f6; color:white; padding:10px 14px; border-radius:18px; display:inline-block;">' + text + '</span></div>';
-  input.value = '';
-  chat.innerHTML += '<div class="leo">Je réfléchis...</div>';
+const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
+const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const BASE_PROMPT = `Tu t'appelles Léo. Tu es le professeur personnel des enfants. Tu es patient, chaleureux et encourageant.
+Tu guides sans donner la réponse directement. Tu poses des questions et tu valorises la réflexion.
+Adapte-toi à l'âge de l'enfant.`;
+
+let messages = [];
+let currentImage = null;
+let currentChild = null;
+
+const chat = document.getElementById('chat');
+const messageInput = document.getElementById('message');
+const sendBtn = document.getElementById('send');
+const photoBtn = document.getElementById('photo-btn');
+const fileInput = document.getElementById('fileInput');
+
+function addMessage(who, text, imgSrc = null) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  if (imgSrc) {
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.style.maxWidth = '200px';
+    img.style.borderRadius = '12px';
+    div.appendChild(img);
+    div.appendChild(document.createElement('br'));
+  }
+  const span = document.createElement('span');
+  span.innerHTML = String(text).replace(/\n/g, '<br>');
+  div.appendChild(span);
+  chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
-document.getElementById('message').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') send();
-});
+
+async function start() {
+  try {
+    const { data } = await supabase.from('children').select('*').limit(1).maybeSingle();
+    currentChild = data;
+  } catch (e) {}
+
+  if (currentChild && currentChild.name) {
+    addMessage('leo', `Salut ${currentChild.name} ! Content de te revoir. Qu’est-ce qu’on fait aujourd’hui ?`);
+    messages = [{ role: 'system', content: BASE_PROMPT + `\nL'enfant s'appelle ${currentChild.name} et a ${currentChild.age || '?'} ans.` }];
+  } else {
+    addMessage('leo', 'Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?');
+    messages = [{ role: 'system', content: BASE_PROMPT }];
+  }
+}
+
+function sendMessage() {
+  const text = messageInput.value.trim();
+  if (!text && !currentImage) return;
+
+  if (text) addMessage('user', text);
+  messageInput.value = '';
+
+  const content = currentImage
+    ? [{ type: 'text', text: text || '' }, { type: 'image_url', image_url: { url: currentImage } }]
+    : text;
+
+  messages.push({ role: 'user', content });
+  currentImage = null;
+
+  // Sauvegarde du prénom/âge si première fois
+  if (text && !currentChild) {
+    const match = text.match(/([A-Za-zÀ-ÿ]+).*?(\d+)/);
+    if (match) {
+      supabase.from('children').insert({ name: match[1], age: parseInt(match[2]) }).select().single()
+        .then(({ data }) => { if (data) currentChild = data; });
+    }
+  }
+
+  sendBtn.disabled = true;
+  addMessage('leo', 'Léo réfléchit...');
+
+  fetch(FUNCTION_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+    },
+    body: JSON.stringify({ messages })
+  })
+  .then(r => r.json())
+  .then(data => {
+    chat.lastChild.remove();
+    const reply = data.choices?.[0]?.message?.content || 'Je n’ai pas compris.';
+    addMessage('leo', reply);
+    messages.push({ role: 'assistant', content: reply });
+  })
+  .catch(() => {
+    chat.lastChild.remove();
+    addMessage('leo', 'Problème de connexion. Réessaie.');
+  })
+  .finally(() => sendBtn.disabled = false);
+}
+
+sendBtn.onclick = sendMessage;
+messageInput.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+photoBtn.onclick = () => fileInput.click();
+fileInput.onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { currentImage = reader.result; addMessage('user', '📷 Photo', currentImage); sendMessage(); };
+  reader.readAsDataURL(file);
+};
+
+start();
 </script>
 </body>
 </html>
