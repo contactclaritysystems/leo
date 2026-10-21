@@ -13,7 +13,7 @@
   .leo { align-self: flex-start; background: #1e293b; border: 1px solid #334155; }
   #input-area { padding: 12px; background: #1e293b; display: flex; gap: 8px; }
   textarea { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #475569; background: #0f172a; color: white; resize: none; font-size: 16px; }
-  button { width: 48px; height: 48px; border-radius: 50%; background: #3b82f6; color: white; border: none; font-size: 20px; }
+  button { width: 48px; height: 48px; border-radius: 50%; background: #3b82f6; color: white; border: none; font-size: 20px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -37,84 +37,78 @@ const messageInput = document.getElementById('message');
 const sendBtn = document.getElementById('send');
 const welcome = document.getElementById('welcome');
 
-const SYSTEM = `Tu es Léo, un professeur bienveillant pour enfants.
-- Sois naturel et détendu. Ne pose pas trop de questions d'affilée.
-- Guide l'enfant sans donner la réponse directement quand c'est un exercice.
-- Adapte-toi à son âge et à ce qu'il dit.
-- Réponds de façon concise.`;
+const SYSTEM = `Tu es Léo, un professeur bienveillant pour enfants. Sois naturel, pas trop de questions d'affilée. Guide sans donner la réponse directement.`;
 
 let messages = [{ role: 'system', content: SYSTEM }];
 let currentChild = null;
-let supabase = null;
+let supabaseClient = null;
 
-if (window.supabase) {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  supabase.from('children').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
-    .then(({ data }) => {
-      if (data && data.name) {
-        currentChild = data;
-        welcome.textContent = `Salut ${data.name} !`;
-        messages[0].content += ` L'enfant s'appelle ${data.name}${data.age ? ' et a ' + data.age + ' ans' : ''}.`;
-      }
-    });
-}
+try {
+  if (window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient.from('children').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(function(res) {
+        if (res.data && res.data.name) {
+          currentChild = res.data;
+          welcome.textContent = 'Salut ' + res.data.name + ' !';
+        }
+      });
+  }
+} catch (e) {}
 
 function addMessage(who, text) {
-  const div = document.createElement('div');
+  var div = document.createElement('div');
   div.className = 'msg ' + who;
   div.textContent = text;
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
 
-async function saveChild(name, age) {
-  if (!supabase || currentChild) return;
-  const { data } = await supabase.from('children').insert({ name, age: age || null }).select().single();
-  if (data) currentChild = data;
-}
-
-async function saveMsg(role, content) {
-  if (!supabase || !currentChild) return;
-  await supabase.from('messages').insert({ child_id: currentChild.id, role, content });
-}
-
 function sendMessage() {
-  const text = messageInput.value.trim();
+  var text = messageInput.value.trim();
   if (!text) return;
   addMessage('user', text);
   messageInput.value = '';
   messages.push({ role: 'user', content: text });
-  saveMsg('user', text);
 
-  // Détection simple du prénom/âge
-  if (!currentChild) {
-    const m = text.match(/([A-Za-zÀ-ÿ]+)/);
-    const ageMatch = text.match(/(\d+)\s*ans/);
-    if (m) saveChild(m[1], ageMatch ? parseInt(ageMatch[1]) : null);
+  if (!currentChild && supabaseClient) {
+    var m = text.match(/([A-Za-zÀ-ÿ]+)/);
+    if (m) {
+      supabaseClient.from('children').insert({ name: m[1] }).select().single().then(function(res) {
+        if (res.data) currentChild = res.data;
+      });
+    }
   }
 
   addMessage('leo', '...');
   fetch(FUNCTION_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-    body: JSON.stringify({ messages })
+    body: JSON.stringify({ messages: messages })
   })
-  .then(r => r.json())
-  .then(data => {
-    chat.lastChild.remove();
-    const reply = data.choices?.[0]?.message?.content || 'Ok.';
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (chat.lastChild) chat.lastChild.remove();
+    var reply = (data.choices && data.choices[0] && data.choices[0].message) ? data.choices[0].message.content : 'Ok.';
     addMessage('leo', reply);
     messages.push({ role: 'assistant', content: reply });
-    saveMsg('assistant', reply);
+    if (currentChild && supabaseClient) {
+      supabaseClient.from('messages').insert({ child_id: currentChild.id, role: 'assistant', content: reply });
+    }
   })
-  .catch(() => {
-    chat.lastChild.remove();
-    addMessage('leo', 'Petit problème, réessaie.');
+  .catch(function() {
+    if (chat.lastChild) chat.lastChild.remove();
+    addMessage('leo', 'Problème, réessaie.');
   });
 }
 
 sendBtn.onclick = sendMessage;
-messageInput.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+messageInput.onkeydown = function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+};
 </script>
 </body>
 </html>
