@@ -49,7 +49,6 @@
     border: 1px solid #334155;
     border-bottom-left-radius: 4px;
   }
-  .leo strong { color: #93c5fd; }
   #input-area {
     padding: 12px;
     background: #1e293b;
@@ -81,13 +80,7 @@
     flex-shrink: 0;
   }
   button:disabled { opacity: 0.5; }
-  #api-key-screen button {
-    border-radius: 12px !important;
-    width: auto !important;
-    padding: 14px 32px !important;
-    font-size: 16px !important;
-    margin-top: 8px;
-  }
+  #photo-btn { background: #475569; }
   #api-key-screen {
     position: fixed;
     inset: 0;
@@ -110,6 +103,12 @@
     color: white;
     font-size: 16px;
   }
+  #api-key-screen button {
+    border-radius: 12px !important;
+    width: auto !important;
+    padding: 14px 32px !important;
+    font-size: 16px !important;
+  }
   .hidden { display: none !important; }
   img.preview {
     max-width: 200px;
@@ -122,12 +121,12 @@
 
 <div id="api-key-screen">
   <h2>Bienvenue avec Léo</h2>
-  <p style="margin-top:12px; text-align:center; max-width:400px;">
-    Entre ta clé API OpenAI (celle que tu utilises déjà avec Clarity).<br>
-    Elle reste uniquement sur ton téléphone.
+  <p style="margin-top:12px; text-align:center; max-width:400px; line-height:1.5;">
+    Entre ta clé API OpenAI.<br>
+    (Elle n’est pas sauvegardée, tu devras la remettre à chaque ouverture)
   </p>
   <input type="password" id="apiKeyInput" placeholder="sk-...">
-  <button id="saveKey" style="border-radius:12px; width:auto; padding:0 24px;">Continuer</button>
+  <button id="saveKey">Continuer</button>
 </div>
 
 <header>Léo</header>
@@ -136,45 +135,53 @@
 
 <div id="input-area">
   <button id="photo-btn" title="Envoyer une photo">📷</button>
-  <textarea id="message" rows="1" placeholder="Écris ou parle à Léo..."></textarea>
+  <textarea id="message" rows="1" placeholder="Écris à Léo..."></textarea>
   <button id="send">➤</button>
 </div>
 
 <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none">
 
 <script>
-const SYSTEM_PROMPT = `Tu t'appelles Léo. Tu es le professeur personnel des enfants de cette famille. Tu es patient, chaleureux, clair et encourageant. Tu adaptes toujours ton langage et tes explications à l'âge de l'enfant (environ 5 ans ou 9 ans).
+const BASE_PROMPT = `Tu t'appelles Léo. Tu es le professeur personnel des enfants de cette famille. Tu es patient, chaleureux, clair, encourageant et un peu joueur, mais tu restes avant tout un professeur.
+
+Tu adaptes toujours ton langage, tes exemples et la difficulté à l'âge de l'enfant.
 
 Règles pédagogiques importantes :
-- Tu ne donnes jamais la réponse complète tout de suite. Tu guides l'enfant étape par étape pour qu'il trouve lui-même.
-- Tu poses des questions simples, tu proposes des indices, tu félicites les efforts et les bonnes idées.
-- Si l'enfant bloque vraiment, tu expliques plus clairement, mais toujours en l'invitant à réfléchir avec toi.
-- Tu adaptes la difficulté en temps réel selon ses réponses.
-- Tu restes positif et motivant, même quand il se trompe.
+- Tu ne donnes jamais la réponse complète tout de suite. Tu guides l'enfant étape par étape.
+- Tu poses des questions, tu proposes des indices, tu valorises la réflexion et les méthodes de l'enfant.
+- Même quand il trouve la bonne réponse, tu lui demandes comment il a fait avant de valider complètement.
+- Si l'enfant bloque, tu donnes un indice plus précis, puis tu le laisses réessayer.
+- Tu restes positif, même quand il se trompe.
+- Tu peux jouer ou faire des activités amusantes, mais tu reviens régulièrement vers quelque chose d'utile (calcul, lecture, observation, réflexion...).
 
-Quand l'enfant envoie une photo (devoir, exercice, cahier, etc.) :
-- Tu regardes attentivement la photo.
-- Tu identifies le type d'exercice et le niveau.
-- Tu commences par demander à l'enfant ce qu'il a déjà essayé ou ce qu'il ne comprend pas.
-- Ensuite tu le guides pas à pas, sans tout résoudre à sa place.
-- Si la photo est floue ou incomplète, tu le dis gentiment et tu demandes ce dont il a besoin.
+Mémoire et connaissance de l'enfant :
+- Au tout début d'une conversation avec un enfant que tu ne connais pas encore, demande gentiment son prénom et son âge.
+- Ensuite, au fil des échanges, retiens ce qu'il aime, ce qu'il n'aime pas, ses points forts et ses difficultés.
+- Utilise ces informations pour adapter tes exemples, tes activités et tes encouragements.
+- Si tu as déjà des informations sur l'enfant (fournies dans le contexte), utilise-les naturellement.
 
-Style de réponse :
-- Phrases courtes et claires, surtout avec le plus jeune.
-- Tu peux utiliser un peu d'humour léger et des encouragements sincères.
+Quand l'enfant envoie une photo (devoir, exercice, dessin, etc.) :
+- Regarde attentivement.
+- Identifie de quoi il s'agit.
+- Commence par demander ce qu'il a déjà fait ou ce qui le bloque.
+- Guide-le pas à pas.
+- Valorise l'effort et les détails réussis.
+
+Style :
+- Phrases claires et adaptées à l'âge.
+- Encourageants et sincères.
 - Tu proposes souvent de continuer ensemble.
-- Tu te souviens des progrès et des difficultés rencontrées dans la conversation.
 
 Sécurité :
-- Tu restes toujours bienveillant et adapté aux enfants.
-- Tu ne parles pas de sujets inappropriés.
-- Si l'enfant est fatigué ou frustré, tu proposes de faire une pause ou de changer d'activité.
+- Toujours bienveillant et adapté aux enfants.
+- Si l'enfant est fatigué ou frustré, propose une pause ou une activité plus légère.
 
 Tu es Léo, leur professeur. Tu les aides à progresser avec plaisir et confiance.`;
 
-let apiKey = localStorage.getItem('openai_api_key') || '';
-let messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+let apiKey = localStorage.getItem('leo_api_key') || '';
+let messages = [];
 let currentImage = null;
+let childProfile = JSON.parse(localStorage.getItem('leo_child_profile') || 'null');
 
 const apiScreen = document.getElementById('api-key-screen');
 const chat = document.getElementById('chat');
@@ -183,7 +190,27 @@ const sendBtn = document.getElementById('send');
 const photoBtn = document.getElementById('photo-btn');
 const fileInput = document.getElementById('fileInput');
 
-if (apiKey) apiScreen.classList.add('hidden');
+function getSystemPrompt() {
+  let prompt = BASE_PROMPT;
+  if (childProfile && childProfile.name) {
+    prompt += `\n\nInformations déjà connues sur l'enfant :\n- Prénom : ${childProfile.name}\n- Âge : ${childProfile.age || 'non précisé'}\n- Notes : ${childProfile.notes || 'aucune pour le moment'}`;
+  }
+  return prompt;
+}
+
+function initConversation() {
+  messages = [{ role: 'system', content: getSystemPrompt() }];
+  if (!childProfile || !childProfile.name) {
+    addMessage('leo', 'Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?');
+  } else {
+    addMessage('leo', `Salut ${childProfile.name} ! Content de te revoir. Qu’est-ce qu’on fait aujourd’hui ?`);
+  }
+}
+
+if (apiKey) {
+  apiScreen.classList.add('hidden');
+  initConversation();
+}
 
 document.getElementById('saveKey').addEventListener('click', () => {
   const key = document.getElementById('apiKeyInput').value.trim();
@@ -196,13 +223,9 @@ document.getElementById('saveKey').addEventListener('click', () => {
     return;
   }
   apiKey = key;
-  try {
-    localStorage.setItem('openai_api_key', apiKey);
-  } catch (e) {
-    alert('Impossible de sauvegarder la clé. Essaie avec Chrome.');
-  }
+  localStorage.setItem('leo_api_key', apiKey);
   apiScreen.classList.add('hidden');
-  addMessage('leo', 'Salut ! Je suis Léo. Tu peux m’écrire ou m’envoyer une photo de ton devoir. On va travailler ensemble !');
+  initConversation();
 });
 
 function addMessage(who, text, imgSrc = null) {
@@ -220,6 +243,16 @@ function addMessage(who, text, imgSrc = null) {
   div.appendChild(span);
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
+}
+
+function updateProfileFromConversation() {
+  // Simple extraction attempt (basic)
+  const lastUser = messages.filter(m => m.role === 'user').pop();
+  if (!lastUser || !lastUser.content) return;
+  const text = typeof lastUser.content === 'string' ? lastUser.content : '';
+  if (!childProfile) childProfile = { name: '', age: '', notes: '' };
+  // Very light parsing – the real memory will come from the model + manual notes later if needed
+  localStorage.setItem('leo_child_profile', JSON.stringify(childProfile));
 }
 
 photoBtn.onclick = () => fileInput.click();
@@ -248,6 +281,10 @@ messageInput.onkeydown = (e) => {
 async function sendMessage() {
   const text = messageInput.value.trim();
   if (!text && !currentImage) return;
+  if (!apiKey) {
+    alert('Clé API manquante');
+    return;
+  }
 
   if (text) addMessage('user', text);
   messageInput.value = '';
@@ -265,6 +302,14 @@ async function sendMessage() {
   messages.push({ role: 'user', content: content.length === 1 && content[0].type === 'text' ? text : content });
   currentImage = null;
 
+  // Try to capture name/age if not known
+  if (text && (!childProfile || !childProfile.name)) {
+    const lower = text.toLowerCase();
+    if (lower.includes('je m') || lower.includes("j'ai") || lower.includes('ans')) {
+      // Let the model handle it, we just store later if needed
+    }
+  }
+
   sendBtn.disabled = true;
   addMessage('leo', '<em>Léo réfléchit...</em>');
 
@@ -278,7 +323,7 @@ async function sendMessage() {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: messages,
-        max_tokens: 500,
+        max_tokens: 600,
         temperature: 0.7
       })
     });
@@ -291,31 +336,27 @@ async function sendMessage() {
     const data = await res.json();
     const reply = data.choices[0].message.content;
 
-    // Remove "réfléchit" message
     chat.lastChild.remove();
     addMessage('leo', reply);
 
     messages.push({ role: 'assistant', content: reply });
+
+    // Basic profile update (you can improve this later)
+    if (!childProfile) childProfile = { name: '', age: '', notes: '' };
+    localStorage.setItem('leo_child_profile', JSON.stringify(childProfile));
+
   } catch (err) {
     chat.lastChild.remove();
-    addMessage('leo', 'Oups, j’ai eu un petit problème. Vérifie ta connexion ou ta clé API. (' + err.message + ')');
+    addMessage('leo', 'Oups, j’ai eu un petit problème. (' + err.message + ')');
   }
 
   sendBtn.disabled = false;
 }
 
-// Auto-resize textarea
 messageInput.addEventListener('input', function() {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
-
-// Welcome if key already saved
-if (apiKey) {
-  setTimeout(() => {
-    addMessage('leo', 'Salut ! Je suis Léo. Tu peux m’écrire ou m’envoyer une photo de ton devoir. On va travailler ensemble !');
-  }, 300);
-}
 </script>
 </body>
 </html>
