@@ -132,22 +132,20 @@ function getSystemPrompt() {
   return prompt;
 }
 
-async function initConversation() {
-  try {
-    currentChild = await loadOrCreateChild();
-  } catch (e) {
-    console.error(e);
-    currentChild = null;
-  }
+// Affiche le message immédiatement
+addMessage('leo', 'Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?');
+messages = [{ role: 'system', content: BASE_PROMPT }];
 
-  messages = [{ role: 'system', content: getSystemPrompt() }];
-
-  if (!currentChild || !currentChild.name) {
-    addMessage('leo', 'Salut ! Je suis Léo, ton professeur. Comment tu t’appelles et quel âge tu as ?');
-  } else {
+// Charge le profil en arrière-plan
+loadOrCreateChild().then(child => {
+  currentChild = child;
+  if (currentChild && currentChild.name) {
+    // Remplace le message si on connaît déjà l'enfant
+    chat.innerHTML = '';
     addMessage('leo', `Salut ${currentChild.name} ! Content de te revoir. Qu’est-ce qu’on fait aujourd’hui ?`);
+    messages = [{ role: 'system', content: getSystemPrompt() }];
   }
-}
+}).catch(() => {});
 
 function addMessage(who, text, imgSrc = null) {
   const div = document.createElement('div');
@@ -268,8 +266,7 @@ messageInput.addEventListener('input', function() {
   this.style.height = Math.min(this.scrollHeight, 120) + 'px';
 });
 
-// Start
-initConversation();
+// Start is now immediate above
 </script>
 </body>
 </html>
