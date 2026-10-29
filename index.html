@@ -6,39 +6,42 @@
 <title>Léo – Ton Prof</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; height: 100dvh; display: flex; flex-direction: column; }
-  header { background: #1e293b; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  header strong { font-size: 1.35rem; white-space: nowrap; }
-  select, input { padding: 10px; border-radius: 10px; border: 1px solid #475569; background: #0f172a; color: white; min-width: 0; font-size: 15px; }
-  #profileSelect { max-width: 150px; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { font-size: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; height: 100dvh; display: flex; flex-direction: column; }
+  header { background: #1e293b; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  header strong { font-size: 1.1rem; white-space: nowrap; }
+  select, input { padding: 7px 9px; border-radius: 9px; border: 1px solid #475569; background: #0f172a; color: white; min-width: 0; font-size: 14px; }
+  dialog select, dialog input { padding: 9px; font-size: 16px; }
+  #profileSelect { max-width: 160px; }
   .top-actions { display: flex; gap: 6px; align-items: center; min-width: 0; }
   button { cursor: pointer; border: 0; background: #3b82f6; color: white; font: inherit; }
-  .small-btn { border-radius: 10px; padding: 10px 12px; font-size: 15px; }
-  .icon-btn { border-radius: 10px; padding: 9px 11px; font-size: 17px; background: #334155; }
-  #toolbar { display: flex; gap: 6px; padding: 8px 10px; background: #172033; overflow-x: auto; }
-  .chip { border-radius: 999px; padding: 8px 13px; font-size: 14px; background: #334155; white-space: nowrap; flex-shrink: 0; }
+  .small-btn { border-radius: 9px; padding: 8px 12px; font-size: 14px; }
+  .icon-btn { border-radius: 9px; width: 34px; height: 34px; padding: 0; font-size: 15px; line-height: 1; background: #334155; }
+  #newProfile { font-size: 20px; font-weight: 600; }
+  #toolbar { display: flex; gap: 6px; padding: 6px 10px; background: #172033; overflow-x: auto; }
+  .chip { border-radius: 999px; padding: 6px 11px; font-size: 13px; background: #334155; white-space: nowrap; flex-shrink: 0; }
   .chip.on { background: #16a34a; }
-  #chat { flex: 1; min-height: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 87%; padding: 12px 16px; border-radius: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; }
+  #chat { flex: 1; min-height: 0; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; padding: 9px 13px; border-radius: 16px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
   .user { align-self: flex-end; background: #2563eb; }
   .leo { align-self: flex-start; background: #1e293b; border: 1px solid #334155; }
   .msg img { max-width: 200px; max-height: 240px; border-radius: 12px; display: block; margin-bottom: 6px; }
-  .speak { display: block; margin-top: 6px; background: none; padding: 2px 0 0; font-size: 18px; opacity: .8; }
-  #input-area { padding: 10px; background: #1e293b; display: flex; gap: 8px; align-items: flex-end; }
-  textarea { flex: 1; min-width: 0; padding: 12px; border-radius: 16px; border: 1px solid #475569; background: #0f172a; color: white; resize: none; font: inherit; font-size: 16px; max-height: 140px; }
-  .round-btn { flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; font-size: 20px; }
+  .speak { display: block; margin-top: 4px; background: none; padding: 0; font-size: 15px; opacity: .8; }
+  #input-area { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: #1e293b; display: flex; gap: 8px; align-items: flex-end; }
+  textarea { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 20px; border: 1px solid #475569; background: #0f172a; color: white; resize: none; font: inherit; font-size: 16px; max-height: 140px; }
+  .round-btn { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; font-size: 17px; }
   #photoBtn { background: #475569; }
   #micBtn { background: #7c3aed; }
   #micBtn.listening { background: #ef4444; animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   button:disabled, textarea:disabled, select:disabled { opacity: .5; cursor: not-allowed; }
-  #photoStatus, #status { padding: 5px 14px; font-size: 13px; color: #cbd5e1; }
+  #photoStatus, #status { padding: 4px 12px; font-size: 12px; color: #cbd5e1; }
   #photoStatus:empty, #status:empty { display: none; }
   dialog { border: 1px solid #475569; background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 18px; width: min(94vw, 420px); max-height: 90dvh; overflow-y: auto; }
   dialog::backdrop { background: #000a; }
   dialog form { display: flex; flex-direction: column; gap: 12px; }
   dialog label { display: flex; flex-direction: column; gap: 5px; font-size: 14px; }
-  dialog h2 { margin: 0; font-size: 1.15rem; }
+  dialog h2 { margin: 0; font-size: 1.05rem; }
   dialog h3 { margin: 8px 0 0; font-size: 1rem; }
   dialog textarea { min-height: 70px; font-size: 14px; border-radius: 10px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -53,14 +56,14 @@
   <strong>🤖 Léo</strong>
   <div class="top-actions">
     <select id="profileSelect" aria-label="Choisir un enfant"><option value="">Choisir un profil</option></select>
-    <button class="icon-btn" id="newProfile" type="button" aria-label="Créer un profil">➕</button>
+    <button class="icon-btn" id="newProfile" type="button" aria-label="Créer un profil">+</button>
     <button class="icon-btn" id="settingsBtn" type="button" aria-label="Réglages parent">⚙️</button>
   </div>
 </header>
 <div id="toolbar">
   <button class="chip" id="newHomework" type="button">📚 Nouveau devoir</button>
   <button class="chip" id="playBtn" type="button">🎲 Jouer</button>
-  <button class="chip" id="autoReadBtn" type="button">🔊 Lecture auto</button>
+  <button class="chip" id="autoReadBtn" type="button">🔊 Voix auto</button>
 </div>
 <div id="status" role="status" aria-live="polite"></div>
 <div id="chat" aria-live="polite"></div>
@@ -102,7 +105,7 @@
     <label>Voix <select id="voiceSelect"></select></label>
     <label>Vitesse <input id="rateInput" type="range" min="0.7" max="1.2" step="0.05"></label>
     <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
-    <p class="note">Sur iPhone, les voix « améliorées » se téléchargent dans Réglages › Accessibilité › Contenu énoncé › Voix › Français. Sur Android, installe « Synthèse vocale Google ».</p>
+    <p class="note">Sur iPhone, les voix Siri ne sont pas accessibles aux pages web. Télécharge plutôt « Audrey (premium) » ou « Aurélie (premium) » dans Réglages › Accessibilité › Contenu énoncé › Voix › Français, puis rouvre Léo. Sur Android, installe « Synthèse vocale Google ».</p>
     <div class="dialog-actions"><button type="button" id="cancelSettings" class="small-btn grey">Fermer</button><button class="small-btn" type="submit">Enregistrer</button></div>
   </form>
 </dialog>
@@ -362,7 +365,7 @@
   function displayConversation() {
     chat.replaceChildren();
     const profile = currentProfile();
-    if (!profile) { addMessage('assistant', 'Salut ! Je suis Léo 👋 Choisis ton profil ou crée-en un avec ➕.', null, false); return; }
+    if (!profile) { addMessage('assistant', 'Salut ! Je suis Léo 👋 Choisis ton profil ou crée-en un avec le bouton +.', null, false); return; }
     addMessage('assistant', welcome(profile));
     for (const item of conversation) addMessage(item.role, item.role === 'user' ? item.text.replace(/ \[dicté à la voix\]/g, '') : item.text);
   }
@@ -386,7 +389,7 @@
     profileSelect.disabled = busy; $('newProfile').disabled = busy;
     input.placeholder = enabled ? 'Écris à Léo...' : (busy ? 'Léo réfléchit...' : 'Choisis ton profil...');
     $('autoReadBtn').classList.toggle('on', !!settings.autoRead);
-    $('autoReadBtn').textContent = settings.autoRead ? '🔊 Lecture auto : oui' : '🔇 Lecture auto : non';
+    $('autoReadBtn').textContent = settings.autoRead ? '🔊 Voix auto' : '🔇 Voix coupée';
     if (!synth) $('autoReadBtn').style.display = 'none';
   }
   function autoGrow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }
