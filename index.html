@@ -102,7 +102,21 @@
       </div>
     </div>
     <h3>🔊 Voix de Léo</h3>
-    <label>Voix <select id="voiceSelect"></select></label>
+    <label>Type de voix <select id="voiceMode">
+      <option value="openai">Voix naturelle (IA, recommandée)</option>
+      <option value="browser">Voix du téléphone (gratuite)</option>
+    </select></label>
+    <label>Voix naturelle <select id="aiVoice">
+      <option value="coral">Coral · femme chaleureuse</option>
+      <option value="nova">Nova · femme douce</option>
+      <option value="shimmer">Shimmer · femme claire</option>
+      <option value="sage">Sage · femme posée</option>
+      <option value="alloy">Alloy · neutre</option>
+      <option value="echo">Echo · homme</option>
+      <option value="ash">Ash · homme dynamique</option>
+      <option value="onyx">Onyx · homme grave</option>
+    </select></label>
+    <label>Voix du téléphone (secours) <select id="voiceSelect"></select></label>
     <label>Vitesse <input id="rateInput" type="range" min="0.7" max="1.2" step="0.05"></label>
     <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
     <p class="note">Sur iPhone, les voix Siri ne sont pas accessibles aux pages web. Télécharge plutôt « Audrey (premium) » ou « Aurélie (premium) » dans Réglages › Accessibilité › Contenu énoncé › Voix › Français, puis rouvre Léo. Sur Android, installe « Synthèse vocale Google ».</p>
@@ -115,6 +129,7 @@
   // Clé publique "anon" : ce n'est PAS une clé service_role.
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
   const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
+  const TTS_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/leo-voix'; // voix naturelle OpenAI
   const PROFILES_KEY = 'leo_profiles_v2';      // même clé que la v2 : les profils existants sont conservés
   const ACTIVE_KEY = 'leo_active_v2';
   const SETTINGS_KEY = 'leo_settings_v3';
@@ -128,7 +143,7 @@
 
   let profiles = readJSON(PROFILES_KEY, []);
   if (!Array.isArray(profiles)) profiles = [];
-  let settings = Object.assign({ autoRead: true, voiceURI: '', rate: 0.95 }, readJSON(SETTINGS_KEY, {}));
+  let settings = Object.assign({ autoRead: true, voiceMode: 'openai', aiVoice: 'coral', voiceURI: '', rate: 1 }, readJSON(SETTINGS_KEY, {}));
   let activeId = null, conversation = [], memory = emptyMemory(), pendingImage = null, busy = false;
   let lastInputWasVoice = false;
 
@@ -258,8 +273,8 @@
     if (/fr[-_]FR/i.test(v.lang)) s += 1;
     return s;
   }
-  function pickVoice() {
-    if (settings.voiceURI) { const v = voices.find(x => x.voiceURI === settings.voiceURI); if (v) return v; }
+  function pickVoice(uri) {
+    if (uri) { const v = voices.find(x => x.voiceURI === uri); if (v) return v; }
     return voices.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] || null;
   }
   function speechText(t) {
@@ -272,12 +287,27 @@
       .replace(/•/g, '')
       .replace(/\s+/g, ' ').trim();
   }
-  function speak(text) {
+  // Lecteur audio unique pour la voix naturelle (débloqué au premier geste, indispensable sur iPhone)
+  const player = new Audio();
+  let audioUnlocked = false, speakToken = 0, currentAudioUrl = null;
+  function silentWavUrl() {
+    const sr = 8000, n = 400, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function stopSpeaking() {
+    speakToken++;
+    if (synth) synth.cancel();
+    try { player.pause(); } catch {}
+  }
+  // Voix du téléphone (secours, gratuite)
+  function speakBrowser(t, voiceURI, rate) {
     if (!synth) return;
-    synth.cancel();
-    const t = speechText(text);
-    if (!t) return;
-    const voice = pickVoice();
+    const voice = pickVoice(voiceURI);
     // Découpage en phrases : évite que certains navigateurs coupent les longs textes
     const chunks = t.match(/[^.!?…]+[.!?…]*/g) || [t];
     for (const c of chunks) {
@@ -285,15 +315,52 @@
       const u = new SpeechSynthesisUtterance(c.trim());
       u.lang = voice ? voice.lang : 'fr-FR';
       if (voice) u.voice = voice;
-      u.rate = Number(settings.rate) || 0.95;
+      u.rate = rate;
       u.pitch = 1.05;
       u.volume = 1;
       synth.speak(u);
     }
   }
-  // iPhone : la voix doit être "débloquée" par un premier geste de l'utilisateur
+  async function speak(text, opts = {}) {
+    stopSpeaking();
+    const token = speakToken;
+    const t = speechText(text);
+    if (!t) return;
+    const mode = opts.voiceMode || settings.voiceMode;
+    const aiVoice = opts.aiVoice || settings.aiVoice;
+    const voiceURI = opts.voiceURI !== undefined ? opts.voiceURI : settings.voiceURI;
+    const rate = Number(opts.rate || settings.rate) || 1;
+    if (mode === 'openai') {
+      try {
+        const response = await fetch(TTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+          body: JSON.stringify({ text: t.slice(0, 1500), voice: aiVoice })
+        });
+        if (!response.ok) throw Error('erreur ' + response.status);
+        const blob = await response.blob();
+        if (token !== speakToken) return; // l'enfant a coupé ou relancé entre-temps
+        if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+        currentAudioUrl = URL.createObjectURL(blob);
+        player.src = currentAudioUrl;
+        player.playbackRate = Math.min(1.2, Math.max(0.8, rate));
+        await player.play();
+        return;
+      } catch (error) {
+        if (token !== speakToken) return;
+        $('status').textContent = 'Voix naturelle indisponible (' + (error.message || 'erreur') + ') : voix du téléphone utilisée.';
+      }
+    }
+    speakBrowser(t, voiceURI, rate);
+  }
+  // iPhone : le son doit être "débloqué" par un premier geste de l'utilisateur
   function unlockSpeech() {
     if (synth && !speechUnlocked) { try { synth.speak(new SpeechSynthesisUtterance(' ')); } catch {} speechUnlocked = true; }
+    if (!audioUnlocked) {
+      audioUnlocked = true;
+      try { player.src = silentWavUrl(); const p = player.play(); if (p) p.catch(() => { audioUnlocked = false; }); }
+      catch { audioUnlocked = false; }
+    }
   }
   if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
 
@@ -304,7 +371,7 @@
   function toggleListening() {
     if (!SR || busy || !currentProfile()) return;
     if (listening) { try { rec.stop(); } catch {} return; }
-    if (synth) synth.cancel();
+    stopSpeaking();
     unlockSpeech();
     rec = new SR();
     rec.lang = 'fr-FR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
@@ -343,7 +410,7 @@
     element.className = 'msg ' + (role === 'user' ? 'user' : 'leo');
     if (imageUrl) { const img = document.createElement('img'); img.src = imageUrl; img.alt = 'Photo envoyée'; element.appendChild(img); }
     if (text) { const span = document.createElement('span'); span.textContent = text; element.appendChild(span); }
-    if (role !== 'user' && text && speakable !== false && synth) {
+    if (role !== 'user' && text && speakable !== false) {
       const b = document.createElement('button');
       b.className = 'speak'; b.type = 'button'; b.textContent = '🔊'; b.setAttribute('aria-label', 'Écouter');
       b.addEventListener('click', () => { unlockSpeech(); speak(text); });
@@ -378,7 +445,7 @@
     memory = activeId ? loadMemory(activeId) : emptyMemory();
     pendingImage = null; input.value = ''; autoGrow(); photoStatus.textContent = '';
     $('status').textContent = '';
-    if (synth) synth.cancel();
+    stopSpeaking();
     renderProfiles(); displayConversation(); updateControls();
   }
   function updateControls() {
@@ -390,7 +457,6 @@
     input.placeholder = enabled ? 'Écris à Léo...' : (busy ? 'Léo réfléchit...' : 'Choisis ton profil...');
     $('autoReadBtn').classList.toggle('on', !!settings.autoRead);
     $('autoReadBtn').textContent = settings.autoRead ? '🔊 Voix auto' : '🔇 Voix coupée';
-    if (!synth) $('autoReadBtn').style.display = 'none';
   }
   function autoGrow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }
   function record(role, text) {
@@ -434,7 +500,7 @@
     const text = input.value.trim();
     const imageUrl = pendingImage;
     if (!text && !imageUrl) return;
-    if (synth) synth.cancel();
+    stopSpeaking();
     busy = true; updateControls();
     $('status').textContent = '';
     const userText = text || 'Voici une photo de mon exercice.';
@@ -502,6 +568,8 @@
     }
     loadVoices();
     $('rateInput').value = settings.rate;
+    $('voiceMode').value = settings.voiceMode;
+    $('aiVoice').value = settings.aiVoice;
     $('settingsDialog').showModal();
   }
   const lines = s => s.split('\n').map(x => x.trim()).filter(Boolean).slice(-MAX_MEMORY_ITEMS);
@@ -512,16 +580,18 @@
       saveJSON(memoryKey(activeId), memory);
     }
     settings.voiceURI = $('voiceSelect').value;
+    settings.voiceMode = $('voiceMode').value;
+    settings.aiVoice = $('aiVoice').value;
     settings.rate = Number($('rateInput').value) || 0.95;
     saveJSON(SETTINGS_KEY, settings);
     $('settingsDialog').close();
   });
   $('testVoice').addEventListener('click', () => {
     unlockSpeech();
-    const saved = { ...settings };
-    settings.voiceURI = $('voiceSelect').value; settings.rate = Number($('rateInput').value) || 0.95;
-    speak('Bonjour ! Je suis Léo, ton professeur. Combien font 7 × 8 ? Prends ton temps !');
-    settings = saved;
+    speak('Bonjour ! Je suis Léo, ton professeur. Combien font 7 × 8 ? Prends ton temps, je suis là pour t’aider !', {
+      voiceMode: $('voiceMode').value, aiVoice: $('aiVoice').value,
+      voiceURI: $('voiceSelect').value, rate: Number($('rateInput').value) || 1
+    });
   });
   $('clearMemory').addEventListener('click', () => {
     if (!currentProfile() || !confirm('Effacer tout ce que Léo a retenu sur ' + currentProfile().name + ' ?')) return;
@@ -560,7 +630,7 @@
     if (!currentProfile() || busy) return;
     if (conversation.length && !confirm('Commencer un nouveau devoir ? La conversation actuelle sera effacée (Léo garde sa mémoire).')) return;
     conversation = []; saveJSON(historyKey(activeId), conversation);
-    if (synth) synth.cancel();
+    stopSpeaking();
     displayConversation();
   });
   $('playBtn').addEventListener('click', () => {
@@ -570,7 +640,7 @@
   });
   $('autoReadBtn').addEventListener('click', () => {
     settings.autoRead = !settings.autoRead; saveJSON(SETTINGS_KEY, settings);
-    if (!settings.autoRead && synth) synth.cancel();
+    if (!settings.autoRead) stopSpeaking();
     updateControls();
   });
   sendBtn.addEventListener('click', sendMessage);
