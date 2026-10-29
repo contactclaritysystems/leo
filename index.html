@@ -5,148 +5,595 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Léo – Ton Prof</title>
 <style>
-  body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; height: 100vh; display: flex; flex-direction: column; }
-  header { background: #1e293b; padding: 14px; text-align: center; font-size: 1.4rem; }
-  #chat { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-  .msg { max-width: 85%; padding: 12px 16px; border-radius: 18px; line-height: 1.45; white-space: pre-wrap; }
-  .user { align-self: flex-end; background: #3b82f6; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; height: 100dvh; display: flex; flex-direction: column; }
+  header { background: #1e293b; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  header strong { font-size: 1.35rem; white-space: nowrap; }
+  select, input { padding: 10px; border-radius: 10px; border: 1px solid #475569; background: #0f172a; color: white; min-width: 0; font-size: 15px; }
+  #profileSelect { max-width: 150px; }
+  .top-actions { display: flex; gap: 6px; align-items: center; min-width: 0; }
+  button { cursor: pointer; border: 0; background: #3b82f6; color: white; font: inherit; }
+  .small-btn { border-radius: 10px; padding: 10px 12px; font-size: 15px; }
+  .icon-btn { border-radius: 10px; padding: 9px 11px; font-size: 17px; background: #334155; }
+  #toolbar { display: flex; gap: 6px; padding: 8px 10px; background: #172033; overflow-x: auto; }
+  .chip { border-radius: 999px; padding: 8px 13px; font-size: 14px; background: #334155; white-space: nowrap; flex-shrink: 0; }
+  .chip.on { background: #16a34a; }
+  #chat { flex: 1; min-height: 0; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 87%; padding: 12px 16px; border-radius: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; }
+  .user { align-self: flex-end; background: #2563eb; }
   .leo { align-self: flex-start; background: #1e293b; border: 1px solid #334155; }
-  #input-area { padding: 12px; background: #1e293b; display: flex; gap: 8px; }
-  textarea { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #475569; background: #0f172a; color: white; resize: none; font-size: 16px; }
-  button { width: 48px; height: 48px; border-radius: 50%; background: #3b82f6; color: white; border: none; font-size: 20px; cursor: pointer; }
+  .msg img { max-width: 200px; max-height: 240px; border-radius: 12px; display: block; margin-bottom: 6px; }
+  .speak { display: block; margin-top: 6px; background: none; padding: 2px 0 0; font-size: 18px; opacity: .8; }
+  #input-area { padding: 10px; background: #1e293b; display: flex; gap: 8px; align-items: flex-end; }
+  textarea { flex: 1; min-width: 0; padding: 12px; border-radius: 16px; border: 1px solid #475569; background: #0f172a; color: white; resize: none; font: inherit; font-size: 16px; max-height: 140px; }
+  .round-btn { flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; font-size: 20px; }
+  #photoBtn { background: #475569; }
+  #micBtn { background: #7c3aed; }
+  #micBtn.listening { background: #ef4444; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  button:disabled, textarea:disabled, select:disabled { opacity: .5; cursor: not-allowed; }
+  #photoStatus, #status { padding: 5px 14px; font-size: 13px; color: #cbd5e1; }
+  #photoStatus:empty, #status:empty { display: none; }
+  dialog { border: 1px solid #475569; background: #1e293b; color: #e2e8f0; padding: 20px; border-radius: 18px; width: min(94vw, 420px); max-height: 90dvh; overflow-y: auto; }
+  dialog::backdrop { background: #000a; }
+  dialog form { display: flex; flex-direction: column; gap: 12px; }
+  dialog label { display: flex; flex-direction: column; gap: 5px; font-size: 14px; }
+  dialog h2 { margin: 0; font-size: 1.15rem; }
+  dialog h3 { margin: 8px 0 0; font-size: 1rem; }
+  dialog textarea { min-height: 70px; font-size: 14px; border-radius: 10px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .danger { background: #b91c1c; }
+  .grey { background: #475569; }
+  .note { color: #cbd5e1; font-size: 12px; margin: 0; }
 </style>
 </head>
 <body>
-<header>Léo</header>
-<div id="chat">
-  <div class="msg leo" id="welcome">Salut ! Je suis Léo. Comment tu t’appelles et quel âge tu as ?</div>
+<header>
+  <strong>🤖 Léo</strong>
+  <div class="top-actions">
+    <select id="profileSelect" aria-label="Choisir un enfant"><option value="">Choisir un profil</option></select>
+    <button class="icon-btn" id="newProfile" type="button" aria-label="Créer un profil">➕</button>
+    <button class="icon-btn" id="settingsBtn" type="button" aria-label="Réglages parent">⚙️</button>
+  </div>
+</header>
+<div id="toolbar">
+  <button class="chip" id="newHomework" type="button">📚 Nouveau devoir</button>
+  <button class="chip" id="playBtn" type="button">🎲 Jouer</button>
+  <button class="chip" id="autoReadBtn" type="button">🔊 Lecture auto</button>
 </div>
+<div id="status" role="status" aria-live="polite"></div>
+<div id="chat" aria-live="polite"></div>
+<div id="photoStatus"></div>
 <div id="input-area">
-  <textarea id="message" rows="1" placeholder="Écris à Léo..."></textarea>
-  <button id="send">➤</button>
+  <button id="photoBtn" class="round-btn" type="button" aria-label="Choisir une photo">📷</button>
+  <textarea id="message" rows="1" placeholder="Choisis ton profil pour commencer..." aria-label="Message à Léo"></textarea>
+  <button id="micBtn" class="round-btn" type="button" aria-label="Parler à Léo">🎤</button>
+  <button id="send" class="round-btn" type="button" aria-label="Envoyer">➤</button>
 </div>
+<input type="file" id="fileInput" accept="image/*" style="display:none">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<dialog id="profileDialog">
+  <form id="profileForm">
+    <h2>Créer un profil</h2>
+    <label>Prénom <input id="childName" maxlength="35" autocomplete="off" required></label>
+    <label>Âge <input id="childAge" type="number" min="3" max="18" required></label>
+    <label>Classe <select id="childClass" required><option value="">Choisir...</option></select></label>
+    <p class="note">Les profils, la mémoire de Léo et les conversations restent sur cet appareil.</p>
+    <div class="dialog-actions"><button type="button" id="cancelProfile" class="small-btn grey">Annuler</button><button class="small-btn" type="submit">Créer</button></div>
+  </form>
+</dialog>
+
+<dialog id="settingsDialog">
+  <form id="settingsForm">
+    <h2>⚙️ Réglages parent</h2>
+    <div id="memorySection">
+      <h3 id="memoryTitle">🧠 Ce que Léo a retenu</h3>
+      <p class="note">Une idée par ligne. Léo complète ces listes tout seul au fil des séances, et tu peux les corriger.</p>
+      <label>💪 Points forts <textarea id="memForts"></textarea></label>
+      <label>🎯 À travailler <textarea id="memDiff"></textarea></label>
+      <label>💡 Infos utiles (goûts, façon d'apprendre…) <textarea id="memInfos"></textarea></label>
+      <div class="row">
+        <button type="button" id="clearMemory" class="small-btn grey">Vider la mémoire</button>
+        <button type="button" id="deleteProfile" class="small-btn danger">Supprimer ce profil</button>
+      </div>
+    </div>
+    <h3>🔊 Voix de Léo</h3>
+    <label>Voix <select id="voiceSelect"></select></label>
+    <label>Vitesse <input id="rateInput" type="range" min="0.7" max="1.2" step="0.05"></label>
+    <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
+    <p class="note">Sur iPhone, les voix « améliorées » se téléchargent dans Réglages › Accessibilité › Contenu énoncé › Voix › Français. Sur Android, installe « Synthèse vocale Google ».</p>
+    <div class="dialog-actions"><button type="button" id="cancelSettings" class="small-btn grey">Fermer</button><button class="small-btn" type="submit">Enregistrer</button></div>
+  </form>
+</dialog>
+
 <script>
-(function() {
-  const SUPABASE_URL = 'https://kobqdisfhqiqesglvqky.supabase.co';
+(() => {
+  // Clé publique "anon" : ce n'est PAS une clé service_role.
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
   const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
+  const PROFILES_KEY = 'leo_profiles_v2';      // même clé que la v2 : les profils existants sont conservés
+  const ACTIVE_KEY = 'leo_active_v2';
+  const SETTINGS_KEY = 'leo_settings_v3';
+  const MAX_HISTORY = 12;
+  const MAX_MEMORY_ITEMS = 15;
+  const CLASSES = ['Petite section','Moyenne section','Grande section','CP','CE1','CE2','CM1','CM2','6e','5e','4e','3e','Seconde','Première','Terminale'];
 
-  const chat = document.getElementById('chat');
-  const messageInput = document.getElementById('message');
-  const sendBtn = document.getElementById('send');
-  const welcome = document.getElementById('welcome');
+  const $ = id => document.getElementById(id);
+  const chat = $('chat'), input = $('message'), sendBtn = $('send'), photoBtn = $('photoBtn'), micBtn = $('micBtn');
+  const profileSelect = $('profileSelect'), photoStatus = $('photoStatus');
 
-  const SYSTEM = `Tu es Léo, le professeur personnel des enfants de cette famille.
+  let profiles = readJSON(PROFILES_KEY, []);
+  if (!Array.isArray(profiles)) profiles = [];
+  let settings = Object.assign({ autoRead: true, voiceURI: '', rate: 0.95 }, readJSON(SETTINGS_KEY, {}));
+  let activeId = null, conversation = [], memory = emptyMemory(), pendingImage = null, busy = false;
+  let lastInputWasVoice = false;
 
-Tu as des connaissances solides jusqu’au niveau lycée, mais tu adaptes toujours ton langage, tes explications et la difficulté à l’âge de l’enfant qui te parle.
+  for (const c of CLASSES) $('childClass').add(new Option(c, c));
 
-Tu connais chaque enfant : prénom, âge, ce qu’il aime, ce qu’il n’aime pas, ses forces et ses difficultés. Tu identifies qui te parle et tu utilises activement ces informations pour adapter tes exemples, ton niveau d’exigence et ton approche.
-
-Règles importantes :
-- Reste concis. Préfère des réponses courtes. Évite les longs paragraphes.
-- Varie tes formulations. Ne commence pas trop souvent par « D’accord », « Super », « Pas de problème ».
-- Devoirs et exercices : Ne donne jamais la réponse complète tout de suite. Identifie ce qui bloque. Explique avec des mots simples et un exemple concret adapté à son âge. Guide avec des indices progressifs. Valorise la méthode et l’effort.
-- Pour les divisions et les opérations : montre la vraie pose comme à l’école française (dividende à gauche, diviseur à droite, trait, soustractions successives). Guide étape par étape pour la remplir.
-- Questions de curiosité : Réponds clairement et simplement, adapté à son âge.
-- Questions inappropriées : Refuse poliment.
-- Pose peu de questions, et seulement des questions simples.
-- En cas d’erreur : donne un indice, puis laisse-le réessayer.
-- En cas de fatigue : simplifie ou propose une pause.
-- Photo de devoir : Décris brièvement ce que tu vois, demande ce qui bloque, puis guide.
-- Au début, si tu ne le connais pas, demande son prénom et son âge.
-
-Tu es exigeant mais bienveillant. Ton but est qu’il comprenne vraiment.`;
-
-  let messages = [{ role: 'system', content: SYSTEM }];
-  let currentChild = null;
-  let sb = null;
-
-  if (window.supabase) {
-    try {
-      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      sb.from('children').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle()
-        .then(function(res) {
-          if (res.data && res.data.name) {
-            currentChild = res.data;
-            if (welcome) welcome.textContent = 'Salut ' + res.data.name + ' !';
-          }
-        });
-    } catch (e) {}
+  // ---------- Stockage ----------
+  function readJSON(key, fallback) {
+    try { const value = localStorage.getItem(key); return value ? JSON.parse(value) : fallback; }
+    catch { return fallback; }
   }
-
-  function addMessage(who, text) {
-    const div = document.createElement('div');
-    div.className = 'msg ' + who;
-    div.textContent = text;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+  function saveJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch { $('status').textContent = 'Stockage local plein ou indisponible : les données ne seront peut-être pas conservées.'; return false; }
   }
+  function removeKey(key) { try { localStorage.removeItem(key); } catch {} }
+  function historyKey(id) { return 'leo_history_v2_' + id; }
+  function memoryKey(id) { return 'leo_memory_v3_' + id; }
+  function currentProfile() { return profiles.find(p => p.id === activeId) || null; }
 
-  function sendMessage() {
-    const text = messageInput.value.trim();
-    if (!text) return;
-    addMessage('user', text);
-    messageInput.value = '';
-    messages.push({ role: 'user', content: text });
-
-    if (sb && !currentChild) {
-      const nameMatch = text.match(/([A-Za-zÀ-ÿ]{2,})/);
-      const ageMatch = text.match(/(\d+)/);
-      if (nameMatch) {
-        const payload = { name: nameMatch[1] };
-        if (ageMatch) payload.age = parseInt(ageMatch[1], 10);
-        sb.from('children').insert(payload).select().single().then(function(res) {
-          if (res.data) {
-            currentChild = res.data;
-            sb.from('messages').insert({ child_id: currentChild.id, role: 'user', content: text });
-          }
-        });
-      }
-    } else if (sb && currentChild) {
-      sb.from('messages').insert({ child_id: currentChild.id, role: 'user', content: text });
+  // ---------- Mémoire par enfant ----------
+  function emptyMemory() { return { forts: [], difficultes: [], infos: [] }; }
+  function loadMemory(id) {
+    const stored = readJSON(memoryKey(id), null), mem = emptyMemory();
+    if (stored && typeof stored === 'object') {
+      for (const k of Object.keys(mem)) if (Array.isArray(stored[k])) mem[k] = stored[k].filter(x => typeof x === 'string').slice(-MAX_MEMORY_ITEMS);
     }
+    return mem;
+  }
+  function norm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
+  function addUnique(list, item) {
+    item = String(item).trim().slice(0, 120);
+    if (!item) return;
+    const i = list.findIndex(x => norm(x) === norm(item));
+    if (i >= 0) list.splice(i, 1);
+    list.push(item);
+    while (list.length > MAX_MEMORY_ITEMS) list.shift();
+  }
+  function applyMemo(memo) {
+    if (!memo || typeof memo !== 'object' || !activeId) return;
+    for (const k of ['forts', 'difficultes', 'infos']) if (Array.isArray(memo[k])) memo[k].forEach(x => addUnique(memory[k], x));
+    // "progres" = une ancienne difficulté maintenant réussie : on la retire des difficultés
+    if (Array.isArray(memo.progres)) memo.progres.forEach(x => {
+      const n = norm(x);
+      if (n.length < 3) return;
+      memory.difficultes = memory.difficultes.filter(d => !norm(d).includes(n) && !n.includes(norm(d)));
+      addUnique(memory.forts, x);
+    });
+    saveJSON(memoryKey(activeId), memory);
+  }
+  function extractMemo(raw) {
+    let memo = null;
+    let text = raw.replace(/<memo>([\s\S]*?)<\/memo>/gi, (_, json) => {
+      try { memo = JSON.parse(json.replace(/```(json)?/gi, '').trim()); } catch {}
+      return '';
+    });
+    text = text.replace(/<memo>[\s\S]*$/i, ''); // balise non fermée
+    return { text, memo };
+  }
+  function memoryPrompt() {
+    const parts = [];
+    if (memory.forts.length) parts.push('- Points forts : ' + memory.forts.join(' ; '));
+    if (memory.difficultes.length) parts.push('- À travailler : ' + memory.difficultes.join(' ; '));
+    if (memory.infos.length) parts.push('- Infos utiles : ' + memory.infos.join(' ; '));
+    return parts.length
+      ? 'Ce que tu sais déjà de cet enfant grâce aux séances précédentes :\n' + parts.join('\n')
+      : 'Tu ne connais pas encore bien cet enfant : observe ses forces, ses difficultés et ses goûts.';
+  }
 
-    addMessage('leo', '...');
+  // ---------- Prompt ----------
+  function levelGuide(cls) {
+    const i = CLASSES.indexOf(cls);
+    if (i < 0) return '';
+    if (i <= 2) return "Niveau maternelle : l'enfant ne sait pas encore lire, tes réponses lui sont lues à voix haute. Une ou deux phrases très courtes, mots du quotidien, une seule idée à la fois. Compter, couleurs, formes, sons, petites histoires.";
+    if (i <= 4) return "Niveau CP-CE1 : il apprend à lire. Phrases très courtes, mots simples, 3 ou 4 lignes maximum. Exemples concrets (billes, bonbons, doigts). Explique tout mot difficile.";
+    if (i <= 7) return "Niveau CE2-CM2 (cycle 3) : phrases simples, exemples de la vie quotidienne. Introduis le vocabulaire scolaire (nom, verbe, dizaine, fraction…) en l'expliquant. Réponses de 3 à 6 lignes.";
+    if (i <= 11) return "Niveau collège (cycle 3 en 6e, cycle 4 de la 5e à la 3e) : utilise le vocabulaire précis de chaque matière en l'expliquant, insiste sur la méthode et la rédaction (justifier, conclure). En 3e, fais le lien avec le brevet quand c'est utile. Ton encourageant mais pas enfantin.";
+    return "Niveau lycée : vocabulaire disciplinaire précis, raisonnement rigoureux, méthodes du bac. Ton d'égal à égal, pas enfantin.";
+  }
+  function basePrompt(profile) {
+    return `Tu es Léo, professeur personnel bienveillant pour un enfant.\n` +
+      `Profil : prénom ${profile.name}, âge ${profile.age} ans, classe ${profile.schoolClass}.\n` +
+      `Tu maîtrises les programmes officiels de l'Éducation nationale de la maternelle au lycée, et en particulier jusqu'à la fin du collège (brevet).\n` +
+      `${levelGuide(profile.schoolClass)}\n` +
+      `Adapte toujours tes explications à l'âge réel de l'enfant : un enfant en avance ou en difficulté doit être pris tel qu'il est.\n\n` +
+      `${memoryPrompt()}\n` +
+      `Sers-toi de ces observations : revois en douceur les points à travailler quand l'occasion se présente, appuie-toi sur ses points forts et ses goûts pour choisir tes exemples. Ne dis jamais à l'enfant qu'il est nul ou faible.\n\n` +
+      `Style : réponds en français, court, clair et encourageant. Écris en texte simple : pas de Markdown (pas d'astérisques, pas de titres), pas de LaTeX, pas de symbole $. Pour les fractions écris 3/4, pour les opérations utilise + − × ÷ et =. Tes réponses peuvent être lues à voix haute : fais des phrases naturelles et évite les longues listes.\n` +
+      `Les messages dictés à la voix se terminent par la mention [dicté à la voix] : si un mot semble bizarre, devine le sens probable ou demande-lui de répéter. Ne parle jamais de cette mention.\n\n` +
+      `Orthographe : quand l'enfant ÉCRIT lui-même (jamais pour un message [dicté à la voix], car les fautes viennent alors de la machine), aide-le à mieux écrire sans l'embêter. Réponds d'abord à sa question normalement. Puis, s'il y a une faute, ajoute à la fin UNE seule petite remarque, en une phrase courte et sympa, sur la faute la plus utile à corriger, avec la règle ou l'astuce en quelques mots. Exemple : "Petite astuce : on écrit « beaucoup » avec deux c 😉". Jamais de liste de fautes, jamais de reproche. Ignore les fautes de frappe évidentes, l'absence de majuscule ou de ponctuation et le langage SMS léger. Adapte-toi au niveau : en maternelle et CP, ne corrige presque rien et seulement des mots très simples ; au collège, tu peux viser les accords, les homophones (a/à, et/est, ou/où…) et la conjugaison. Ne fais pas de remarque à chaque message : s'il y en a déjà eu une dans tes deux réponses précédentes, laisse passer, sauf faute vraiment importante. Si la même faute revient souvent, note-la dans la mémoire (difficultes, ex : "homophones a/à").\n\n` +
+      `Devoirs : ne donne pas immédiatement la solution. Demande où l'enfant bloque si nécessaire, puis donne UN indice à la fois. S'il se trompe, réexplique autrement avec un exemple et laisse-le réessayer. Si plusieurs essais échouent, montre la méthode et la solution expliquée, sans le culpabiliser. En calcul posé, respecte la présentation scolaire française et guide chaque étape. Tu aides dans toutes les matières.\n` +
+      `Photos : indique ce que tu parviens à lire, reconnais tes incertitudes et ne devine jamais un énoncé illisible.\n\n` +
+      `Jeux : quand l'enfant veut jouer, propose un quiz, des devinettes, du calcul mental, un mot mystère, un vrai ou faux… adaptés à son niveau, de préférence sur ses points à travailler ou ses centres d'intérêt. Une seule question à la fois, attends sa réponse, félicite et compte les points. Les devoirs passent avant le jeu : s'il a des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.\n\n` +
+      `Valorise les efforts. Si l'enfant fatigue, propose une courte pause. Pour les questions de curiosité, réponds directement à son niveau. Refuse avec douceur les demandes dangereuses ou inappropriées. N'invente pas ce que tu ne sais pas.\n\n` +
+      `Mémoire : quand tu remarques quelque chose de durable sur l'enfant (une notion bien maîtrisée, une difficulté qui revient plusieurs fois, un centre d'intérêt, sa façon d'apprendre), ajoute À LA TOUTE FIN de ta réponse, sur une ligne séparée :\n` +
+      `<memo>{"forts":[],"difficultes":[],"progres":[],"infos":[]}</memo>\n` +
+      `avec des expressions courtes (ex : "tables de 7", "accord du participe passé", "adore les dinosaures"). "progres" sert quand une ancienne difficulté est maintenant réussie. Ne remplis que les listes utiles, et n'ajoute pas cette ligne si tu n'as rien appris de nouveau. Une seule erreur ne fait pas une difficulté. L'enfant ne voit pas cette ligne : ne la mentionne jamais.`;
+  }
 
-    fetch(FUNCTION_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ messages: messages })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (chat.lastChild) chat.lastChild.remove();
-      const reply = (data.choices && data.choices[0] && data.choices[0].message)
-        ? data.choices[0].message.content
-        : "D'accord.";
-      addMessage('leo', reply);
-      messages.push({ role: 'assistant', content: reply });
-      if (sb && currentChild) {
-        sb.from('messages').insert({ child_id: currentChild.id, role: 'assistant', content: reply });
+  // ---------- Nettoyage du texte ----------
+  function cleanText(text) {
+    return String(text)
+      .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '$1/$2')
+      .replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\cdot/g, '×')
+      .replace(/\\\(|\\\)|\\\[|\\\]/g, '')
+      .replace(/\$\$?/g, '')
+      .replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1')
+      .replace(/`([^`]*)`/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^\s*[-*]\s+/gm, '• ')
+      .trim();
+  }
+
+  // ---------- Voix de Léo (synthèse vocale) ----------
+  const synth = window.speechSynthesis || null;
+  let voices = [], speechUnlocked = false;
+  function loadVoices() {
+    if (!synth) return;
+    voices = synth.getVoices().filter(v => /^fr/i.test(v.lang));
+    renderVoiceSelect();
+  }
+  function scoreVoice(v) {
+    let s = 0;
+    if (/natural|neural|online/i.test(v.name)) s += 6;
+    if (/premium|enhanced|améliorée|amelioree/i.test(v.name)) s += 5;
+    if (/google/i.test(v.name)) s += 3;
+    if (/am[ée]lie|audrey|aur[ée]lie|denise|marie|julie|virginie|thomas|henri/i.test(v.name)) s += 2;
+    if (/fr[-_]FR/i.test(v.lang)) s += 1;
+    return s;
+  }
+  function pickVoice() {
+    if (settings.voiceURI) { const v = voices.find(x => x.voiceURI === settings.voiceURI); if (v) return v; }
+    return voices.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] || null;
+  }
+  function speechText(t) {
+    return String(t)
+      .replace(/\p{Extended_Pictographic}/gu, '').replace(/\uFE0F/g, '')
+      .replace(/(\d)\s*\/\s*(\d)/g, '$1 sur $2')
+      .replace(/×/g, ' fois ').replace(/÷/g, ' divisé par ')
+      .replace(/−/g, ' moins ').replace(/(\d) - (\d)/g, '$1 moins $2')
+      .replace(/\+/g, ' plus ').replace(/=/g, ' égale ')
+      .replace(/•/g, '')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function speak(text) {
+    if (!synth) return;
+    synth.cancel();
+    const t = speechText(text);
+    if (!t) return;
+    const voice = pickVoice();
+    // Découpage en phrases : évite que certains navigateurs coupent les longs textes
+    const chunks = t.match(/[^.!?…]+[.!?…]*/g) || [t];
+    for (const c of chunks) {
+      if (!c.trim()) continue;
+      const u = new SpeechSynthesisUtterance(c.trim());
+      u.lang = voice ? voice.lang : 'fr-FR';
+      if (voice) u.voice = voice;
+      u.rate = Number(settings.rate) || 0.95;
+      u.pitch = 1.05;
+      u.volume = 1;
+      synth.speak(u);
+    }
+  }
+  // iPhone : la voix doit être "débloquée" par un premier geste de l'utilisateur
+  function unlockSpeech() {
+    if (synth && !speechUnlocked) { try { synth.speak(new SpeechSynthesisUtterance(' ')); } catch {} speechUnlocked = true; }
+  }
+  if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
+
+  // ---------- Micro (reconnaissance vocale) ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false;
+  if (!SR) micBtn.style.display = 'none';
+  function toggleListening() {
+    if (!SR || busy || !currentProfile()) return;
+    if (listening) { try { rec.stop(); } catch {} return; }
+    if (synth) synth.cancel();
+    unlockSpeech();
+    rec = new SR();
+    rec.lang = 'fr-FR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    const before = input.value.trim();
+    let finalText = '';
+    rec.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript;
       }
-    })
-    .catch(function() {
-      if (chat.lastChild) chat.lastChild.remove();
-      addMessage('leo', 'Problème de connexion.');
+      input.value = (before ? before + ' ' : '') + (finalText + interim).trim();
+      autoGrow();
+    };
+    rec.onerror = e => {
+      $('status').textContent =
+        (e.error === 'not-allowed' || e.error === 'service-not-allowed') ? 'Micro refusé : autorise le micro dans les réglages du navigateur.' :
+        e.error === 'no-speech' ? 'Je n’ai rien entendu, réessaie.' :
+        'Problème de micro (' + e.error + ').';
+    };
+    rec.onend = () => {
+      listening = false; micBtn.classList.remove('listening');
+      if ($('status').textContent.startsWith('🎤')) $('status').textContent = '';
+      updateControls();
+      const spoken = input.value.trim();
+      if (spoken && spoken !== before) { lastInputWasVoice = true; sendMessage(); }
+    };
+    listening = true; micBtn.classList.add('listening');
+    $('status').textContent = '🎤 Je t’écoute… Parle, puis attends un instant.';
+    try { rec.start(); } catch { listening = false; micBtn.classList.remove('listening'); $('status').textContent = ''; }
+  }
+
+  // ---------- Affichage ----------
+  function addMessage(role, text, imageUrl, speakable) {
+    const element = document.createElement('div');
+    element.className = 'msg ' + (role === 'user' ? 'user' : 'leo');
+    if (imageUrl) { const img = document.createElement('img'); img.src = imageUrl; img.alt = 'Photo envoyée'; element.appendChild(img); }
+    if (text) { const span = document.createElement('span'); span.textContent = text; element.appendChild(span); }
+    if (role !== 'user' && text && speakable !== false && synth) {
+      const b = document.createElement('button');
+      b.className = 'speak'; b.type = 'button'; b.textContent = '🔊'; b.setAttribute('aria-label', 'Écouter');
+      b.addEventListener('click', () => { unlockSpeech(); speak(text); });
+      element.appendChild(b);
+    }
+    chat.appendChild(element);
+    chat.scrollTop = chat.scrollHeight;
+    return element;
+  }
+  function renderProfiles() {
+    profileSelect.replaceChildren(new Option('Choisir un profil', ''));
+    for (const profile of profiles) profileSelect.add(new Option(profile.name + ' · ' + profile.schoolClass, profile.id));
+    profileSelect.value = activeId || '';
+  }
+  function welcome(profile) {
+    const voice = SR ? ' Tu peux m’écrire ou appuyer sur 🎤 pour me parler.' : '';
+    return 'Salut ' + profile.name + ' ! 😊 On travaille sur quoi aujourd’hui ?' + voice;
+  }
+  function displayConversation() {
+    chat.replaceChildren();
+    const profile = currentProfile();
+    if (!profile) { addMessage('assistant', 'Salut ! Je suis Léo 👋 Choisis ton profil ou crée-en un avec ➕.', null, false); return; }
+    addMessage('assistant', welcome(profile));
+    for (const item of conversation) addMessage(item.role, item.role === 'user' ? item.text.replace(/ \[dicté à la voix\]/g, '') : item.text);
+  }
+  function chooseProfile(id) {
+    activeId = profiles.some(p => p.id === id) ? id : null;
+    try { if (activeId) localStorage.setItem(ACTIVE_KEY, activeId); else localStorage.removeItem(ACTIVE_KEY); } catch {}
+    conversation = activeId ? readJSON(historyKey(activeId), []) : [];
+    if (!Array.isArray(conversation)) conversation = [];
+    conversation = conversation.filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').slice(-MAX_HISTORY);
+    memory = activeId ? loadMemory(activeId) : emptyMemory();
+    pendingImage = null; input.value = ''; autoGrow(); photoStatus.textContent = '';
+    $('status').textContent = '';
+    if (synth) synth.cancel();
+    renderProfiles(); displayConversation(); updateControls();
+  }
+  function updateControls() {
+    const enabled = !!currentProfile() && !busy;
+    sendBtn.disabled = !enabled; photoBtn.disabled = !enabled; input.disabled = !enabled;
+    micBtn.disabled = !enabled && !listening;
+    $('newHomework').disabled = !enabled; $('playBtn').disabled = !enabled;
+    profileSelect.disabled = busy; $('newProfile').disabled = busy;
+    input.placeholder = enabled ? 'Écris à Léo...' : (busy ? 'Léo réfléchit...' : 'Choisis ton profil...');
+    $('autoReadBtn').classList.toggle('on', !!settings.autoRead);
+    $('autoReadBtn').textContent = settings.autoRead ? '🔊 Lecture auto : oui' : '🔇 Lecture auto : non';
+    if (!synth) $('autoReadBtn').style.display = 'none';
+  }
+  function autoGrow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }
+  function record(role, text) {
+    conversation.push({ role, text: String(text).slice(0, 3000) });
+    conversation = conversation.slice(-MAX_HISTORY);
+    saveJSON(historyKey(activeId), conversation);
+  }
+
+  // ---------- Photo ----------
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) return reject(Error('Sélectionne une image.'));
+      if (file.size > 12 * 1024 * 1024) return reject(Error('Photo trop volumineuse (12 Mo maximum).'));
+      const reader = new FileReader();
+      reader.onerror = () => reject(Error('Impossible de lire la photo.'));
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = () => reject(Error('Format d’image non reconnu.'));
+        image.onload = () => {
+          const scale = Math.min(1, 1400 / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return reject(Error('Impossible de traiter la photo.'));
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
     });
   }
 
-  if (sendBtn) {
-    sendBtn.addEventListener('click', sendMessage);
+  // ---------- Envoi ----------
+  async function sendMessage() {
+    if (busy || !currentProfile()) return;
+    unlockSpeech();
+    const viaVoice = lastInputWasVoice; lastInputWasVoice = false;
+    const text = input.value.trim();
+    const imageUrl = pendingImage;
+    if (!text && !imageUrl) return;
+    if (synth) synth.cancel();
+    busy = true; updateControls();
+    $('status').textContent = '';
+    const userText = text || 'Voici une photo de mon exercice.';
+    // Le modèle doit savoir si l'enfant a tapé ou dicté (pas de correction d'orthographe sur la voix)
+    const sentText = viaVoice ? userText + ' [dicté à la voix]' : userText;
+    addMessage('user', userText, imageUrl);
+    input.value = ''; autoGrow();
+    const pending = addMessage('assistant', 'Léo réfléchit…', null, false);
+    const requestMessages = [
+      { role: 'system', content: basePrompt(currentProfile()) },
+      ...conversation.map(m => ({ role: m.role, content: m.text })),
+      { role: 'user', content: imageUrl
+        ? [{ type: 'text', text: sentText }, { type: 'image_url', image_url: { url: imageUrl } }]
+        : sentText }
+    ];
+    try {
+      const response = await fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'apikey': SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ messages: requestMessages })
+      });
+      if (!response.ok) throw Error('Erreur serveur (' + response.status + ').');
+      const data = await response.json();
+      const raw = data?.choices?.[0]?.message?.content;
+      if (typeof raw !== 'string' || !raw.trim()) throw Error('La réponse reçue est vide ou inattendue.');
+      const { text: withoutMemo, memo } = extractMemo(raw);
+      if (memo) applyMemo(memo);
+      const reply = cleanText(withoutMemo) || 'D’accord ! 😊';
+      pending.remove();
+      addMessage('assistant', reply);
+      if (settings.autoRead || viaVoice) speak(reply);
+      // On conserve le texte des échanges, jamais les données des photos.
+      record('user', imageUrl ? sentText + ' [photo envoyée, non conservée]' : sentText);
+      record('assistant', reply);
+      pendingImage = null; photoStatus.textContent = ''; $('fileInput').value = '';
+    } catch (error) {
+      pending.remove();
+      input.value = text; autoGrow(); // on remet le texte pour pouvoir réessayer
+      addMessage('assistant', 'Je n’ai pas réussi à répondre. Tu peux réessayer.', null, false);
+      $('status').textContent = error.message || 'Problème de connexion.';
+    } finally {
+      busy = false; updateControls();
+    }
   }
-  if (messageInput) {
-    messageInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
+
+  // ---------- Réglages parent ----------
+  function renderVoiceSelect() {
+    const sel = $('voiceSelect');
+    sel.replaceChildren(new Option(voices.length ? 'Automatique (meilleure voix trouvée)' : 'Aucune voix française trouvée', ''));
+    for (const v of voices.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))) sel.add(new Option(v.name + ' (' + v.lang + ')', v.voiceURI));
+    sel.value = settings.voiceURI || '';
   }
+  function openSettings() {
+    const profile = currentProfile();
+    $('memorySection').style.display = profile ? '' : 'none';
+    if (profile) {
+      $('memoryTitle').textContent = '🧠 Ce que Léo a retenu sur ' + profile.name;
+      $('memForts').value = memory.forts.join('\n');
+      $('memDiff').value = memory.difficultes.join('\n');
+      $('memInfos').value = memory.infos.join('\n');
+    }
+    loadVoices();
+    $('rateInput').value = settings.rate;
+    $('settingsDialog').showModal();
+  }
+  const lines = s => s.split('\n').map(x => x.trim()).filter(Boolean).slice(-MAX_MEMORY_ITEMS);
+  $('settingsForm').addEventListener('submit', event => {
+    event.preventDefault();
+    if (currentProfile()) {
+      memory = { forts: lines($('memForts').value), difficultes: lines($('memDiff').value), infos: lines($('memInfos').value) };
+      saveJSON(memoryKey(activeId), memory);
+    }
+    settings.voiceURI = $('voiceSelect').value;
+    settings.rate = Number($('rateInput').value) || 0.95;
+    saveJSON(SETTINGS_KEY, settings);
+    $('settingsDialog').close();
+  });
+  $('testVoice').addEventListener('click', () => {
+    unlockSpeech();
+    const saved = { ...settings };
+    settings.voiceURI = $('voiceSelect').value; settings.rate = Number($('rateInput').value) || 0.95;
+    speak('Bonjour ! Je suis Léo, ton professeur. Combien font 7 × 8 ? Prends ton temps !');
+    settings = saved;
+  });
+  $('clearMemory').addEventListener('click', () => {
+    if (!currentProfile() || !confirm('Effacer tout ce que Léo a retenu sur ' + currentProfile().name + ' ?')) return;
+    memory = emptyMemory(); saveJSON(memoryKey(activeId), memory);
+    $('memForts').value = $('memDiff').value = $('memInfos').value = '';
+  });
+  $('deleteProfile').addEventListener('click', () => {
+    const p = currentProfile();
+    if (!p || !confirm('Supprimer le profil de ' + p.name + ', sa mémoire et ses conversations ?')) return;
+    profiles = profiles.filter(x => x.id !== p.id);
+    saveJSON(PROFILES_KEY, profiles);
+    removeKey(historyKey(p.id)); removeKey(memoryKey(p.id));
+    $('settingsDialog').close();
+    chooseProfile(null);
+  });
+  $('cancelSettings').addEventListener('click', () => $('settingsDialog').close());
+  $('settingsBtn').addEventListener('click', openSettings);
+
+  // ---------- Événements ----------
+  profileSelect.addEventListener('change', () => chooseProfile(profileSelect.value));
+  $('newProfile').addEventListener('click', () => $('profileDialog').showModal());
+  $('cancelProfile').addEventListener('click', () => $('profileDialog').close());
+  $('profileForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const name = $('childName').value.trim();
+    const age = Number($('childAge').value);
+    const schoolClass = $('childClass').value;
+    if (!name || name.length > 35 || !Number.isInteger(age) || age < 3 || age > 18 || !schoolClass) return;
+    const id = 'child_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    profiles.push({ id, name, age, schoolClass });
+    if (!saveJSON(PROFILES_KEY, profiles)) return;
+    $('profileDialog').close(); $('profileForm').reset();
+    chooseProfile(id);
+  });
+  $('newHomework').addEventListener('click', () => {
+    if (!currentProfile() || busy) return;
+    if (conversation.length && !confirm('Commencer un nouveau devoir ? La conversation actuelle sera effacée (Léo garde sa mémoire).')) return;
+    conversation = []; saveJSON(historyKey(activeId), conversation);
+    if (synth) synth.cancel();
+    displayConversation();
+  });
+  $('playBtn').addEventListener('click', () => {
+    if (!currentProfile() || busy) return;
+    input.value = 'J’ai envie de jouer ! 🎲';
+    sendMessage();
+  });
+  $('autoReadBtn').addEventListener('click', () => {
+    settings.autoRead = !settings.autoRead; saveJSON(SETTINGS_KEY, settings);
+    if (!settings.autoRead && synth) synth.cancel();
+    updateControls();
+  });
+  sendBtn.addEventListener('click', sendMessage);
+  micBtn.addEventListener('click', toggleListening);
+  input.addEventListener('input', autoGrow);
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }
+  });
+  photoBtn.addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (!file || busy || !currentProfile()) return;
+    photoStatus.textContent = 'Préparation de la photo…';
+    try {
+      pendingImage = await compressImage(file);
+      photoStatus.textContent = '📷 Photo prête. Ajoute une question ou appuie sur ➤.';
+    } catch (error) {
+      pendingImage = null; photoStatus.textContent = error.message;
+    }
+    event.target.value = '';
+  });
+
+  renderProfiles();
+  let savedId = null;
+  try { savedId = localStorage.getItem(ACTIVE_KEY); } catch {}
+  chooseProfile(savedId);
 })();
 </script>
 </body>
