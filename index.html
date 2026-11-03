@@ -145,7 +145,7 @@
   // Clé publique "anon" : ce n'est PAS une clé service_role.
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvYnFkaXNmaHFpcWVzZ2x2cWt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2MTUwMzAsImV4cCI6MjEwODE5MTAzMH0.ZG_eKTztzEN581EQCbTNhtbR4YlMc-F11nInicAWdvg';
   const FUNCTION_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/hyper-action';
-  const TTS_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/leo-voix'; // voix naturelle OpenAI
+  const TTS_URL = 'https://kobqdisfhqiqesglvqky.supabase.co/functions/v1/quick-handler'; // voix naturelle OpenAI (fonction Supabase « quick-handler », fichier leo-voix.ts)
   const PROFILES_KEY = 'leo_profiles_v2';      // même clé que la v2 : les profils existants sont conservés
   const ACTIVE_KEY = 'leo_active_v2';
   const SETTINGS_KEY = 'leo_settings_v3';
@@ -486,7 +486,7 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
           body: JSON.stringify({ text: t.slice(0, 1500), voice: aiVoice })
         }, 25000);
-        if (!response.ok) throw Error(response.status === 404 ? 'fonction leo-voix introuvable' : 'erreur ' + response.status);
+        if (!response.ok) throw Error(response.status === 404 ? 'fonction de voix introuvable' : 'erreur ' + response.status);
         const blob = await response.blob();
         if (token !== speakToken) return; // l'enfant a coupé ou relancé entre-temps
         if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
