@@ -99,13 +99,35 @@
   dialog h2 { margin: 0; font-size: 1.05rem; }
   dialog h3 { margin: 8px 0 0; font-size: 1rem; }
   dialog textarea { min-height: 70px; font-size: 16px; border-radius: 10px; }
+  /* Espace parent : jamais de défilement horizontal */
+  dialog, dialog * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  dialog select, dialog textarea, dialog input:not([type=checkbox]):not([type=range]) { width: 100%; }
+  dialog input[type=range] { width: 100%; }
+  #settingsDialog { padding: 0; overflow: hidden; width: min(94vw, 460px); }
+  #settingsDialog form { gap: 0; max-height: 90dvh; }
+  .sheet-head { padding: 14px 14px 10px; border-bottom: 1px solid #334155; flex-shrink: 0; }
+  .sheet-body { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .sheet-foot { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #334155; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+  .sheet-foot .grow { flex: 1; font-size: 12px; color: #fbbf24; }
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 10px; background: #0f172a; padding: 4px; border-radius: 12px; }
+  .tab { background: transparent; border-radius: 9px; padding: 8px 2px; font-size: 13px; color: #94a3b8; white-space: nowrap; }
+  .tab.on { background: #334155; color: #fff; font-weight: 600; }
+  .tab[hidden], [data-pane][hidden] { display: none !important; }
+  [data-pane] { display: flex; flex-direction: column; gap: 12px; }
+  .card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .card h3 { margin: 0; font-size: .98rem; }
+  .sess { border-top: 1px solid #1e293b; padding-top: 8px; }
+  .sess:first-of-type { border-top: 0; padding-top: 0; }
+  .sess .when { font-size: 12px; color: #94a3b8; }
+  .tag { display: inline-block; background: #1e293b; border: 1px solid #475569; border-radius: 999px; padding: 1px 8px; font-size: 12px; margin: 4px 4px 0 0; }
+  .muted { color: #94a3b8; font-size: 13px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   .danger { background: #b91c1c; }
   .grey { background: #475569; }
   .note { color: #cbd5e1; font-size: 12px; margin: 0; }
-  .two { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
-  .bilan { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px; }
+  .bilan { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
   .bilan .topic { background: #172554; border: 1px solid #3b82f6; border-radius: 10px; padding: 8px; }
   .bilan .topic button { margin-top: 6px; background: #1d4ed8; border-radius: 8px; padding: 5px 9px; font-size: 13px; }
   .bilan .alert { background: #451a03; border: 1px solid #f59e0b; border-radius: 10px; padding: 8px; }
@@ -139,6 +161,30 @@
 </div>
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
 
+<dialog id="setupDialog">
+  <form id="setupForm">
+    <h2>👋 Bienvenue dans Léo</h2>
+    <p class="note">Avant de commencer, le parent configure deux choses. Elles protègent ton enfant et te permettent de suivre son travail.</p>
+    <label>📧 Ton adresse mail <input id="setupEmail" type="email" inputmode="email" autocomplete="email" required placeholder="parent@exemple.fr"></label>
+    <p class="note">Tu recevras un petit résumé les jours où ton enfant travaille, et une alerte si un sujet important apparaît. Choisis une adresse que ton enfant ne consulte pas.</p>
+    <label>🔒 Code parent (4 chiffres) <input id="setupPin" inputmode="numeric" maxlength="4" autocomplete="off" required></label>
+    <label>Confirme le code <input id="setupPin2" inputmode="numeric" maxlength="4" autocomplete="off" required></label>
+    <p class="note">Ce code protège l'espace parent : ne le donne pas à ton enfant.</p>
+    <p class="note" id="setupError" style="color:#fbbf24"></p>
+    <div class="dialog-actions"><button class="small-btn" type="submit" id="setupSubmit">C'est parti</button></div>
+  </form>
+</dialog>
+
+<dialog id="pinDialog">
+  <form id="pinForm">
+    <h2>🔒 Espace parent</h2>
+    <label>Code parent <input id="pinAsk" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+    <p class="note" id="pinError" style="color:#fbbf24"></p>
+    <button type="button" id="pinForgot" class="small-btn grey">Code oublié ? Le recevoir par mail</button>
+    <div class="dialog-actions"><button type="button" id="pinCancel" class="small-btn grey">Annuler</button><button class="small-btn" type="submit">Ouvrir</button></div>
+  </form>
+</dialog>
+
 <dialog id="profileDialog">
   <form id="profileForm">
     <h2>Créer un profil</h2>
@@ -152,63 +198,118 @@
 
 <dialog id="settingsDialog">
   <form id="settingsForm">
-    <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v20</span></h2>
-    <div id="profileSection" style="display:flex;flex-direction:column;gap:12px">
-      <h3 id="bilanTitle">📊 Bilan des 7 derniers jours</h3>
-      <div id="bilanBox" class="bilan"></div>
-      <h3 id="profileTitle">👤 Profil</h3>
-      <div class="two">
-        <label>Âge <input id="editAge" type="number" min="3" max="18"></label>
-        <label>Classe <select id="editClass"></select></label>
-      </div>
-      <p class="note">Pense à changer la classe à chaque rentrée.</p>
-      <h3>📅 Contrôles à venir</h3>
-      <p class="note">Une ligne par contrôle, par exemple « 14/11 Maths : les fractions ». Léo les ajoute aussi tout seul quand ton enfant en parle, et propose de réviser les jours d'avant.</p>
-      <textarea id="testsEdit" placeholder="14/11 Maths : les fractions"></textarea>
-      <h3 id="memoryTitle">🧠 Ce que Léo a retenu</h3>
-      <p class="note">Une idée par ligne. Léo complète ces listes tout seul, et tu peux les corriger.</p>
-      <label>💪 Points forts <textarea id="memForts"></textarea></label>
-      <label>🎯 À travailler <textarea id="memDiff"></textarea></label>
-      <label>💡 Infos utiles (goûts, façon d'apprendre…) <textarea id="memInfos"></textarea></label>
-      <div class="row">
-        <button type="button" id="clearMemory" class="small-btn grey">Vider la mémoire</button>
-        <button type="button" id="deleteProfile" class="small-btn danger">Supprimer ce profil</button>
+    <div class="sheet-head">
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v22</span></h2>
+      <div class="tabs">
+        <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
+        <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
+        <button type="button" class="tab" data-tab="regles">🛡️ Règles</button>
+        <button type="button" class="tab" data-tab="voix">🔊 Voix</button>
       </div>
     </div>
-    <h3>🛡️ Règles</h3>
-    <label>💬 Sujets réservés aux parents (bébés et sexualité, mort, religion, actualités violentes, famille…) <select id="intimeSelect">
-      <option value="parents">Renvoyer vers les parents (Léo n'explique pas)</option>
-      <option value="simple">Réponse très simple et neutre, puis renvoyer vers les parents</option>
-      <option value="science">Explication factuelle adaptée à l'âge</option>
-    </select></label>
-    <p class="note">Dans tous les cas, Léo te le signale dans le bilan.</p>
-    <label>🎅 Magie de l'enfance (Père Noël, petite souris, cloches de Pâques…) <select id="magieSelect">
-      <option value="garder">Garder la magie : Léo joue le jeu, sans jamais rien dévoiler</option>
-      <option value="secret">Mon enfant connaît déjà le secret</option>
-    </select></label>
-    <label class="check"><input type="checkbox" id="strictInput"><span>Mode devoirs strict : Léo ne donne jamais la réponse finale d'un exercice, seulement des indices et la méthode, même si l'enfant insiste.</span></label>
-    <label>🔒 Code parent (4 chiffres, laisser vide pour aucun code) <input id="pinInput" inputmode="numeric" maxlength="4" autocomplete="off"></label>
-    <p class="note">Le code protège cet espace parent. Note-le bien : en cas d'oubli, il faut réinstaller l'appli.</p>
-    <h3>🔊 Voix de Léo</h3>
-    <label>Type de voix <select id="voiceMode">
-      <option value="openai">Voix naturelle (IA, recommandée)</option>
-      <option value="browser">Voix du téléphone (gratuite)</option>
-    </select></label>
-    <label>Voix naturelle <select id="aiVoice">
-      <option value="ash">Ash · garçon dynamique (Léo)</option>
-      <option value="verse">Verse · garçon expressif</option>
-      <option value="echo">Echo · garçon calme</option>
-      <option value="ballad">Ballad · garçon doux</option>
-      <option value="onyx">Onyx · voix grave</option>
-      <option value="alloy">Alloy · neutre</option>
-      <option value="coral">Coral · fille chaleureuse</option>
-      <option value="nova">Nova · fille douce</option>
-    </select></label>
-    <label>Voix du téléphone (secours) <select id="voiceSelect"></select></label>
-    <label>Vitesse de la voix <input id="rateInput" type="range" min="0.8" max="1.6" step="0.05"></label>
-    <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
-    <p class="note" id="voiceTestStatus" style="color:#fbbf24"></p>
-    <div class="dialog-actions"><button type="button" id="cancelSettings" class="small-btn grey">Fermer</button><button class="small-btn" type="submit">Enregistrer</button></div>
+    <div class="sheet-body" id="sheetBody">
+
+      <section data-pane="bilan">
+        <div id="bilanBox" class="bilan"></div>
+      </section>
+
+      <section data-pane="enfant">
+        <div class="card">
+          <h3 id="profileTitle">👤 Profil</h3>
+          <div class="two">
+            <label>Âge <input id="editAge" type="number" min="3" max="18"></label>
+            <label>Classe <select id="editClass"></select></label>
+          </div>
+          <p class="note">Pense à changer la classe à chaque rentrée.</p>
+        </div>
+        <div class="card">
+          <h3>📅 Contrôles à venir</h3>
+          <textarea id="testsEdit" placeholder="14/11 Maths : les fractions"></textarea>
+          <p class="note">Une ligne par contrôle (date, puis matière). Léo les ajoute aussi tout seul quand ton enfant en parle, et propose de réviser les jours d'avant.</p>
+        </div>
+        <div class="card">
+          <h3 id="memoryTitle">🧠 Ce que Léo a retenu</h3>
+          <p class="note">Léo complète ces listes tout seul après chaque séance. Une idée par ligne, tu peux les corriger.</p>
+          <label>💪 Points forts <textarea id="memForts"></textarea></label>
+          <label>🎯 À travailler <textarea id="memDiff"></textarea></label>
+          <label>💡 Goûts et façon d'apprendre <textarea id="memInfos"></textarea></label>
+          <button type="button" id="clearMemory" class="small-btn grey">Vider la mémoire</button>
+        </div>
+        <button type="button" id="deleteProfile" class="small-btn danger">Supprimer ce profil</button>
+      </section>
+
+      <section data-pane="regles">
+        <div class="card">
+          <h3>📚 Devoirs</h3>
+          <label class="check"><input type="checkbox" id="strictInput"><span>Mode strict : Léo ne donne jamais la réponse finale, seulement des indices et la méthode, même si l'enfant insiste.</span></label>
+        </div>
+        <div class="card">
+          <h3>💬 Sujets réservés aux parents</h3>
+          <p class="note">Bébés et sexualité, mort, religion, actualités violentes, famille…</p>
+          <select id="intimeSelect">
+            <option value="parents">Renvoyer vers les parents</option>
+            <option value="simple">Réponse très simple + parents</option>
+            <option value="science">Explication adaptée à l'âge</option>
+          </select>
+          <p class="note">Dans tous les cas, la question t'est signalée dans le bilan.</p>
+        </div>
+        <div class="card">
+          <h3>🎅 Magie de l'enfance</h3>
+          <p class="note">Père Noël, petite souris, cloches de Pâques…</p>
+          <select id="magieSelect">
+            <option value="garder">Garder la magie (Léo joue le jeu)</option>
+            <option value="secret">Mon enfant connaît le secret</option>
+          </select>
+        </div>
+        <div class="card">
+          <h3>🔒 Code parent</h3>
+          <input id="pinInput" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 chiffres">
+          <p class="note">Protège cet espace. En cas d'oubli, tu peux le recevoir par mail.</p>
+        </div>
+        <div class="card">
+          <h3>📧 Mails au parent</h3>
+          <input id="emailInput" type="email" inputmode="email" autocomplete="email" placeholder="parent@exemple.fr">
+          <label class="check"><input type="checkbox" id="dailyInput"><span>Résumé chaque jour où l'enfant a travaillé</span></label>
+          <p class="note">Les alertes importantes sont toujours envoyées tout de suite. Les mails restent discrets (« Suivi scolaire ») et ne contiennent jamais les détails sensibles : ceux-ci restent ici, derrière le code.</p>
+          <button type="button" id="testMail" class="small-btn grey">✉️ Envoyer un mail de test</button>
+          <p class="note" id="mailStatus"></p>
+        </div>
+      </section>
+
+      <section data-pane="voix">
+        <div class="card">
+          <h3>🔊 Voix de Léo</h3>
+          <label>Type de voix <select id="voiceMode">
+            <option value="openai">Voix naturelle IA (recommandée)</option>
+            <option value="browser">Voix du téléphone</option>
+          </select></label>
+          <label>Voix naturelle <select id="aiVoice">
+            <option value="ash">Ash · garçon dynamique</option>
+            <option value="verse">Verse · garçon expressif</option>
+            <option value="echo">Echo · garçon calme</option>
+            <option value="ballad">Ballad · garçon doux</option>
+            <option value="onyx">Onyx · voix grave</option>
+            <option value="alloy">Alloy · neutre</option>
+            <option value="coral">Coral · fille chaleureuse</option>
+            <option value="nova">Nova · fille douce</option>
+          </select></label>
+          <label>Vitesse <input id="rateInput" type="range" min="0.8" max="1.6" step="0.05"></label>
+          <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
+          <p class="note" id="voiceTestStatus" style="color:#fbbf24"></p>
+        </div>
+        <div class="card">
+          <h3>📱 Voix de secours</h3>
+          <p class="note">Utilisée seulement si la voix naturelle ne répond pas.</p>
+          <select id="voiceSelect"></select>
+        </div>
+      </section>
+
+    </div>
+    <div class="sheet-foot">
+      <span class="grow" id="settingsError"></span>
+      <button type="button" id="cancelSettings" class="small-btn grey">Fermer</button>
+      <button class="small-btn" type="submit">Enregistrer</button>
+    </div>
   </form>
 </dialog>
 
@@ -234,7 +335,7 @@
 
   let profiles = readJSON(PROFILES_KEY, []);
   if (!Array.isArray(profiles)) profiles = [];
-  let settings = Object.assign({ autoRead: true, voiceMode: 'openai', aiVoice: 'ash', voiceURI: '', rate: 1.2, strict: true, pin: '', intime: 'parents', magie: 'garder' }, readJSON(SETTINGS_KEY, {}));
+  let settings = Object.assign({ autoRead: true, voiceMode: 'openai', aiVoice: 'ash', voiceURI: '', rate: 1.2, strict: true, pin: '', intime: 'parents', magie: 'garder', email: '', daily: true }, readJSON(SETTINGS_KEY, {}));
   if (settings.v !== 7 && settings.v !== 14) { settings.aiVoice = 'ash'; settings.voiceMode = 'openai'; } // Léo est un garçon
   if (settings.v !== 14) { settings.rate = 1.2; settings.v = 14; saveJSON(SETTINGS_KEY, settings); } // voix plus rapide par défaut
   let activeId = null, conversation = [], memory = emptyMemory(), tests = [], pendingImages = [], busy = false;
@@ -258,6 +359,8 @@
   const statsKey = id => 'leo_stats_v13_' + id;
   const alertsKey = id => 'leo_alerts_v13_' + id;
   const topicsKey = id => 'leo_topics_v18_' + id;   // questions à reprendre avec les parents
+  const unsumKey = id => 'leo_unsum_v21_' + id;      // échanges pas encore résumés
+  const sessionsKey = id => 'leo_sessions_v21_' + id; // résumés des séances (bilan parent)
   function currentProfile() { return profiles.find(p => p.id === activeId) || null; }
   function norm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
 
@@ -308,12 +411,13 @@
     });
     saveJSON(memoryKey(activeId), memory);
     if (Array.isArray(memo.controles)) memo.controles.forEach(c => { if (c && typeof c === 'object') addTest(String(c.date || ''), String(c.sujet || '')); });
-    if (typeof memo.alerte === 'string' && memo.alerte.trim()) addAlert(memo.alerte);
+    if (typeof memo.alerte === 'string' && memo.alerte.trim()) { addAlert(memo.alerte); sendAlertMail(activeId); }
     if (typeof memo.sujet_parent === 'string' && memo.sujet_parent.trim()) {
       let tp = readJSON(topicsKey(activeId), []);
       if (!Array.isArray(tp)) tp = [];
       tp.push({ t: Date.now(), s: memo.sujet_parent.trim().slice(0, 80) });
       saveJSON(topicsKey(activeId), tp.slice(-20));
+      checkInsistence(activeId);
     }
   }
   function extractMemo(raw) {
@@ -390,6 +494,142 @@
     if (!Array.isArray(al)) al = [];
     al.push({ t: Date.now(), s: String(text).trim().slice(0, 80) });
     saveJSON(alertsKey(activeId), al.slice(-20));
+  }
+
+  // ---------- Résumé des séances (mémoire + bilan parent) ----------
+  // Après quelques échanges, à la fin d'une séance ou à l'ouverture du bilan, Léo résume ce qui a été fait
+  // et met à jour sa mémoire sur l'enfant (points forts, difficultés, goûts).
+  const summarizing = {};
+  function pushUnsum(role, text) {
+    if (!activeId) return;
+    let u = readJSON(unsumKey(activeId), []);
+    if (!Array.isArray(u)) u = [];
+    u.push({ role, t: Date.now(), text: String(text).slice(0, 700) });
+    saveJSON(unsumKey(activeId), u.slice(-30));
+  }
+  function mergeLearning(id, data) {
+    const mem = id === activeId ? memory : loadMemory(id);
+    for (const k of ['forts', 'difficultes', 'infos']) if (Array.isArray(data[k])) data[k].forEach(x => typeof x === 'string' && addUnique(mem[k], x));
+    if (Array.isArray(data.progres)) data.progres.forEach(x => {
+      const n = norm(x); if (n.length < 3) return;
+      mem.difficultes = mem.difficultes.filter(d => !norm(d).includes(n) && !n.includes(norm(d)));
+      addUnique(mem.forts, x);
+    });
+    saveJSON(memoryKey(id), mem);
+    if (id === activeId) memory = mem;
+  }
+  function parseJsonLoose(raw) {
+    const a = String(raw).indexOf('{'), b = String(raw).lastIndexOf('}');
+    if (a < 0 || b <= a) return null;
+    try { return JSON.parse(String(raw).slice(a, b + 1)); } catch { return null; }
+  }
+  async function summarize(id) {
+    const profile = profiles.find(p => p.id === id);
+    if (!profile || summarizing[id]) return false;
+    let items = readJSON(unsumKey(id), []);
+    if (!Array.isArray(items) || !items.some(x => x.role === 'user')) return false;
+    summarizing[id] = true;
+    try {
+      let sessions = readJSON(sessionsKey(id), []);
+      if (!Array.isArray(sessions)) sessions = [];
+      const prev = sessions[sessions.length - 1];
+      const merge = prev && items[0].t - (prev.end || prev.t) < 20 * 60000;   // même séance : on complète le résumé
+      const mem = id === activeId ? memory : loadMemory(id);
+      const sys = `Tu aides un parent à suivre le travail de son enfant avec Léo, un professeur IA. Enfant : ${profile.name}, ${profile.age} ans, ${profile.schoolClass}.\n` +
+        `Ce que Léo sait déjà de lui : points forts : ${mem.forts.join(' ; ') || 'rien'} ; à travailler : ${mem.difficultes.join(' ; ') || 'rien'} ; goûts : ${mem.infos.join(' ; ') || 'rien'}.\n` +
+        `Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour :\n` +
+        `{"resume":"","resume_mail":"","matieres":[],"notions":[],"forts":[],"difficultes":[],"progres":[],"infos":[]}\n` +
+        `- resume : 1 à 3 phrases courtes et concrètes pour le parent : ce que l'enfant a travaillé ou demandé, et comment ça s'est passé (trouvé seul, avec des indices, erreurs). Exemple : « Révision du triangle rectangle : a trouvé l'hypoténuse seul, a eu besoin d'aide pour Pythagore. »` + (merge ? ` Un résumé existe déjà pour cette séance : « ${prev.resume} ». Écris un résumé complet qui le remplace et inclut tout.` : '') + `\n` +
+        `- matieres : parmi ${SUJETS.join(', ')}.\n` +
+        `- notions : 1 à 6 notions ou thèmes précis (ex : "hypoténuse", "tables de 7", "accord du participe passé", "le Moyen Âge").\n` +
+        `- forts : notions réussies sans aide ; difficultes : erreurs répétées ou gros besoin d'aide ; progres : ancienne difficulté maintenant réussie ; infos : goûts, centres d'intérêt, façon d'apprendre. Expressions courtes, seulement ce qui se voit vraiment dans l'échange, sinon listes vides.\n` +
+        `- Pour une question réservée aux parents (bébés, sexualité, mort, religion, Père Noël…), écris seulement le sujet de la question dans resume, sans aucun détail.\n` +
+        `- resume_mail : le même résumé, mais UNIQUEMENT le travail scolaire et les jeux (il sera envoyé par mail et l'enfant pourrait le lire) : jamais de sujet réservé aux parents, de magie de l'enfance (Père Noël…) ni de sujet de sécurité. Si la séance n'a porté que sur ces sujets, écris "Discussion libre avec Léo."` + (merge && prev.resume_mail ? ` Résumé mail déjà écrit : « ${prev.resume_mail} ».` : '');
+      const transcript = items.map(x => (x.role === 'user' ? 'Enfant : ' : 'Léo : ') + x.text).join('\n');
+      const response = await fetchWithTimeout(FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ messages: [{ role: 'system', content: sys }, { role: 'user', content: transcript }] })
+      }, 60000);
+      if (!response.ok) return false;
+      const data = parseJsonLoose((await response.json())?.choices?.[0]?.message?.content || '');
+      if (!data || typeof data.resume !== 'string' || !data.resume.trim()) return false;
+      mergeLearning(id, data);
+      const list = a => (Array.isArray(a) ? a : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 50));
+      const entry = { t: merge ? prev.t : items[0].t, end: items[items.length - 1].t, resume: data.resume.trim().slice(0, 400),
+        resume_mail: (typeof data.resume_mail === 'string' && data.resume_mail.trim() ? data.resume_mail.trim() : 'Séance de travail avec Léo.').slice(0, 300),
+        matieres: [...new Set(list(data.matieres).map(m => SUJETS.find(x => norm(x) === norm(m))).filter(Boolean))].slice(0, 4), notions: list(data.notions).slice(0, 6) };
+      if (merge) { entry.notions = [...new Set([...(prev.notions || []), ...entry.notions])].slice(0, 8); entry.matieres = [...new Set([...(prev.matieres || []), ...entry.matieres])]; sessions[sessions.length - 1] = entry; }
+      else sessions.push(entry);
+      const limit = Date.now() - 60 * 86400000;
+      saveJSON(sessionsKey(id), sessions.filter(x => x.t > limit).slice(-80));
+      // on retire seulement les échanges résumés (d'autres ont pu arriver pendant ce temps)
+      const lastT = items[items.length - 1].t;
+      let now = readJSON(unsumKey(id), []);
+      saveJSON(unsumKey(id), (Array.isArray(now) ? now : []).filter(x => x.t > lastT));
+      return true;
+    } catch { return false; }
+    finally { summarizing[id] = false; }
+  }
+  function unsumCount(id) { const u = readJSON(unsumKey(id), []); return Array.isArray(u) ? u.length : 0; }
+
+  // ---------- Mails au parent ----------
+  const mailedKey = id => 'leo_mailed_v22_' + id;    // fin de la dernière séance déjà envoyée par mail
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  async function sendMail(payload) {
+    if (!settings.email || !EMAIL_RE.test(settings.email)) return { ok: false, error: 'adresse mail manquante' };
+    try {
+      const response = await fetchWithTimeout(FUNCTION_URL, {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ action: 'mail', to: settings.email, ...payload })
+      }, 30000);
+      const data = await response.json().catch(() => ({}));
+      return response.ok ? { ok: true } : { ok: false, error: data.error || ('erreur ' + response.status) };
+    } catch (e) { return { ok: false, error: friendlyError(e) }; }
+  }
+  function sendAlertMail(id) {
+    const p = profiles.find(x => x.id === id);
+    if (p) sendMail({ kind: 'alert', child: p.name });
+  }
+  // Une même question réservée aux parents qui revient 3 fois en 24 h : on prévient tout de suite (une fois par jour)
+  function checkInsistence(id) {
+    let tp = readJSON(topicsKey(id), []);
+    if (!Array.isArray(tp)) return;
+    const day = tp.filter(x => Date.now() - x.t < 86400000);
+    const last = readJSON('leo_insist_v22_' + id, 0);
+    if (day.length >= 3 && Date.now() - last > 86400000) { saveJSON('leo_insist_v22_' + id, Date.now()); sendAlertMail(id); }
+  }
+  let mailing = false;
+  // Résumé du jour : envoyé quand l'appli est fermée le soir (après 18 h), sinon à la prochaine ouverture
+  async function sendDailyMails(trigger) {
+    if (mailing || !settings.daily || !settings.email) return;
+    mailing = true;
+    try {
+      for (const p of profiles) {
+        let ses = readJSON(sessionsKey(p.id), []);
+        if (!Array.isArray(ses) || !ses.length) continue;
+        const done = Number(readJSON(mailedKey(p.id), 0)) || 0;
+        const todo = ses.filter(x => x && (x.end || x.t) > done);
+        if (!todo.length) continue;
+        const firstDay = isoOf(new Date(todo[0].t));
+        if (trigger === 'open' && firstDay === todayISO()) continue;          // la journée n'est pas finie
+        if (trigger === 'evening' && new Date().getHours() < 18 && firstDay === todayISO()) continue;
+        let st = readJSON(statsKey(p.id), []); if (!Array.isArray(st)) st = [];
+        const days = [...new Set(todo.map(x => isoOf(new Date(x.t))))];
+        const minutesOf = iso => { const ev = st.filter(e => e && isoOf(new Date(e.t)) === iso).map(e => e.t).sort((a, b) => a - b); if (!ev.length) return 0;
+          let m = 0, start = ev[0], prev = ev[0]; for (const t of ev.slice(1)) { if (t - prev > 600000) { m += (prev - start) / 60000 + 2; start = t; } prev = t; } return Math.round(m + (prev - start) / 60000 + 2); };
+        let tp = readJSON(topicsKey(p.id), []);
+        const result = await sendMail({
+          kind: 'daily', child: p.name,
+          day: days.length === 1 ? frDate(days[0]) : 'du ' + frDate(days[0]) + ' au ' + frDate(days[days.length - 1]),
+          minutes: days.reduce((a, d) => a + minutesOf(d), 0),
+          items: todo.slice(-10).map(x => ({ when: frDate(isoOf(new Date(x.t))) + ' à ' + new Date(x.t).getHours() + ' h ' + pad(new Date(x.t).getMinutes()), text: x.resume_mail || 'Séance de travail avec Léo.', tags: [...(x.matieres || []), ...(x.notions || [])].slice(0, 8) })),
+          toReview: Array.isArray(tp) && tp.some(x => x.t > done)
+        });
+        if (result.ok) saveJSON(mailedKey(p.id), Math.max(...todo.map(x => x.end || x.t)));
+      }
+    } finally { mailing = false; }
   }
 
   // ---------- Prompt ----------
@@ -1156,6 +1396,7 @@
     if (lastEl && lastEl.classList.contains('leo')) showTop(lastEl);
   }
   function chooseProfile(id) {
+    if (activeId && activeId !== id) summarize(activeId);
     activeId = profiles.some(p => p.id === id) ? id : null;
     try { if (activeId) localStorage.setItem(ACTIVE_KEY, activeId); else localStorage.removeItem(ACTIVE_KEY); } catch {}
     conversation = activeId ? readJSON(historyKey(activeId), []) : [];
@@ -1163,6 +1404,15 @@
     conversation = conversation.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string').map(normalizeItem).slice(-MAX_HISTORY);
     memory = activeId ? loadMemory(activeId) : emptyMemory();
     tests = activeId ? loadTests(activeId) : [];
+    if (activeId && readJSON(unsumKey(activeId), null) === null) {
+      // première ouverture de la v21 : la conversation déjà faite sera résumée elle aussi
+      const t0 = Date.now() - 30 * 60000;
+      saveJSON(unsumKey(activeId), conversation.map((m, i) => ({ role: m.role, t: t0 + i, text: (m.role === 'user' ? stripHidden(m.text) : textOnly(m.text)).slice(0, 700) })));
+    }
+    if (activeId) {
+      const u = readJSON(unsumKey(activeId), []);
+      if (Array.isArray(u) && u.length && Date.now() - u[u.length - 1].t > 10 * 60000) summarize(activeId);
+    }
     pendingImages = []; input.value = ''; autoGrow(); renderPhotoStatus();
     $('status').textContent = '';
     stopSpeaking();
@@ -1188,6 +1438,8 @@
     conversation.push(item);
     conversation = conversation.slice(-MAX_HISTORY);
     saveJSON(historyKey(activeId), conversation);
+    pushUnsum(role, role === 'user' ? stripHidden(text) : textOnly(String(text).replace(MARK_RE, ' [dessin ou tableau] ')));
+    if (role === 'assistant' && unsumCount(activeId) >= 8) summarize(activeId);   // toutes les 4 questions environ
   }
 
   // ---------- Photos ----------
@@ -1295,19 +1547,22 @@
   // ---------- Espace parent ----------
   function renderVoiceSelect() {
     const sel = $('voiceSelect');
-    sel.replaceChildren(new Option(voices.length ? 'Automatique (meilleure voix trouvée)' : 'Aucune voix française trouvée', ''));
-    for (const v of voices.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))) sel.add(new Option(v.name + ' (' + v.lang + ')', v.voiceURI));
+    sel.replaceChildren(new Option(voices.length ? 'Automatique' : 'Aucune voix française', ''));
+    for (const v of voices.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))) sel.add(new Option(v.name, v.voiceURI));
     sel.value = settings.voiceURI || '';
   }
   function renderBilan(profile) {
     const box = $('bilanBox');
     box.replaceChildren();
-    const line = t => box.append(el('div', null, t));
+    const card = title => { const c = el('div', 'card'); if (title) c.append(el('h3', null, title)); box.append(c); return c; };
+    const since = Date.now() - 7 * 86400000;
+    // --- Semaine ---
     let st = readJSON(statsKey(profile.id), []);
     if (!Array.isArray(st)) st = [];
-    const since = Date.now() - 7 * 86400000;
     const week = st.filter(e => e && typeof e.t === 'number' && e.t >= since).sort((a, b) => a.t - b.t);
-    if (!week.length) line('Pas encore d’activité ces 7 derniers jours.');
+    const c1 = card('📊 Les 7 derniers jours');
+    const sesWeek = (() => { const x = readJSON(sessionsKey(profile.id), []); return Array.isArray(x) ? x.filter(e => e && e.t >= since).length : 0; })();
+    if (!week.length) c1.append(el('div', sesWeek ? null : 'muted', sesWeek ? '📆 ' + sesWeek + ' séance' + (sesWeek > 1 ? 's' : '') : 'Pas encore d’activité.'));
     else {
       const days = new Set(week.map(e => isoOf(new Date(e.t))));
       let minutes = 0, sessions = 0, start = null, prev = null;
@@ -1316,24 +1571,15 @@
         prev = e.t;
       }
       minutes += (prev - start) / 60000 + 2;
-      line('📆 ' + days.size + ' jour' + (days.size > 1 ? 's' : '') + ' de travail · ' + sessions + ' séance' + (sessions > 1 ? 's' : '') + ' · environ ' + Math.round(minutes) + ' min');
+      c1.append(el('div', null, '📆 ' + days.size + ' jour' + (days.size > 1 ? 's' : '') + ' · ' + sessions + ' séance' + (sessions > 1 ? 's' : '') + ' · environ ' + Math.round(minutes) + ' min'));
       const counts = {};
       week.forEach(e => { const s = e.s || 'autre'; counts[s] = (counts[s] || 0) + 1; });
-      line('📚 ' + Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([s, n]) => s + ' (' + n + ')').join(', '));
+      const m = el('div'); m.append('📚 ');
+      Object.entries(counts).sort((a, b) => b[1] - a[1]).forEach(([s]) => m.append(el('span', 'tag', s)));
+      c1.append(m);
     }
-    if (memory.forts.length) line('💪 Points forts : ' + memory.forts.slice(-5).join(', '));
-    if (memory.difficultes.length) line('🎯 À travailler : ' + memory.difficultes.slice(-5).join(', '));
-    if (tests.length) line('📅 Prochain contrôle : ' + frDate(tests[0].date) + ' (' + whenText(tests[0].date) + ') : ' + tests[0].sujet);
-    let tp = readJSON(topicsKey(profile.id), []);
-    if (Array.isArray(tp) && tp.length) {
-      const box2 = el('div', 'topic');
-      box2.append(el('div', null, '💬 Questions de ' + profile.name + ' à reprendre avec toi :'));
-      tp.forEach(x => box2.append(el('div', null, '• le ' + new Date(x.t).toLocaleDateString('fr-FR') + ' : ' + x.s)));
-      const okT = el('button', null, 'J’en ai parlé, effacer'); okT.type = 'button';
-      okT.addEventListener('click', () => { removeKey(topicsKey(profile.id)); renderBilan(profile); });
-      box2.append(okT);
-      box.append(box2);
-    }
+    if (tests.length) c1.append(el('div', null, '📅 Contrôle ' + whenText(tests[0].date) + ' (' + frDate(tests[0].date) + ') : ' + tests[0].sujet));
+    // --- Alertes et questions à reprendre ---
     let al = readJSON(alertsKey(profile.id), []);
     if (Array.isArray(al) && al.length) {
       const a = el('div', 'alert');
@@ -1342,37 +1588,98 @@
       a.append(el('div', null, 'Prends le temps d’en discuter avec lui, calmement. Léo lui a conseillé d’en parler à un adulte de confiance.'));
       const ok = el('button', null, 'J’ai vu, effacer'); ok.type = 'button';
       ok.addEventListener('click', () => { removeKey(alertsKey(profile.id)); renderBilan(profile); });
-      a.append(ok);
-      box.append(a);
+      a.append(ok); box.append(a);
     }
+    let tp = readJSON(topicsKey(profile.id), []);
+    if (Array.isArray(tp) && tp.length) {
+      const b2 = el('div', 'topic');
+      b2.append(el('div', null, '💬 Questions de ' + profile.name + ' à reprendre avec toi :'));
+      tp.forEach(x => b2.append(el('div', null, '• le ' + new Date(x.t).toLocaleDateString('fr-FR') + ' : ' + x.s)));
+      const okT = el('button', null, 'J’en ai parlé, effacer'); okT.type = 'button';
+      okT.addEventListener('click', () => { removeKey(topicsKey(profile.id)); renderBilan(profile); });
+      b2.append(okT); box.append(b2);
+    }
+    // --- Ce qu'il a fait ---
+    let ses = readJSON(sessionsKey(profile.id), []);
+    if (!Array.isArray(ses)) ses = [];
+    const recent = ses.filter(x => x && x.t >= since).reverse();
+    const c2 = card('📝 Ce qu’il a fait avec Léo');
+    if (summarizing[profile.id]) c2.append(el('div', 'muted', '⏳ Mise à jour du bilan…'));
+    if (!recent.length && !summarizing[profile.id]) c2.append(el('div', 'muted', unsumCount(profile.id) ? 'Le résumé de la séance arrive dans un instant.' : 'Rien pour l’instant.'));
+    recent.slice(0, 12).forEach(x => {
+      const d = new Date(x.t), row = el('div', 'sess');
+      row.append(el('div', 'when', d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' + d.getHours() + ' h ' + pad(d.getMinutes()) + ((x.matieres || []).length ? ' · ' + x.matieres.join(', ') : '')));
+      row.append(el('div', null, x.resume));
+      if ((x.notions || []).length) { const tags = el('div'); x.notions.forEach(n => tags.append(el('span', 'tag', n))); row.append(tags); }
+      c2.append(row);
+    });
+    // --- Progrès ---
+    const c3 = card('🧠 Ce que Léo a remarqué');
+    if (!memory.forts.length && !memory.difficultes.length && !memory.infos.length) c3.append(el('div', 'muted', 'Léo apprend à connaître ' + profile.name + ' : ses remarques apparaîtront ici après les premières séances.'));
+    if (memory.forts.length) c3.append(el('div', null, '💪 Points forts : ' + memory.forts.slice(-6).join(', ')));
+    if (memory.difficultes.length) c3.append(el('div', null, '🎯 À travailler : ' + memory.difficultes.slice(-6).join(', ')));
+    if (memory.infos.length) c3.append(el('div', null, '💡 ' + memory.infos.slice(-4).join(', ')));
   }
+  function showTab(name) {
+    document.querySelectorAll('#settingsDialog .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+    document.querySelectorAll('#settingsDialog [data-pane]').forEach(p => { p.hidden = p.dataset.pane !== name; });
+    $('sheetBody').scrollTop = 0;
+  }
+  document.querySelectorAll('#settingsDialog .tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  function fillMemoryFields() {
+    $('memForts').value = memory.forts.join('\n');
+    $('memDiff').value = memory.difficultes.join('\n');
+    $('memInfos').value = memory.infos.join('\n');
+  }
+  let pinOk = false;
+  function askPin() {
+    $('pinAsk').value = ''; $('pinError').textContent = '';
+    $('pinDialog').showModal();
+  }
+  $('pinForm').addEventListener('submit', e => {
+    e.preventDefault();
+    if ($('pinAsk').value.trim() !== settings.pin) { $('pinError').textContent = 'Code incorrect.'; $('pinAsk').value = ''; return; }
+    $('pinDialog').close(); pinOk = true; openSettings();
+  });
+  $('pinCancel').addEventListener('click', () => $('pinDialog').close());
+  $('pinForgot').addEventListener('click', async () => {
+    $('pinError').textContent = 'Envoi en cours…';
+    const r = await sendMail({ kind: 'pin', pin: settings.pin });
+    const m = settings.email.replace(/^(.).*(@.*)$/, '$1•••$2');
+    $('pinError').textContent = r.ok ? '✅ Code envoyé à ' + m + '.' : '⚠️ Envoi impossible (' + r.error + ').';
+  });
   function openSettings() {
     if (busy) return;
-    if (settings.pin) {
-      const v = window.prompt('🔒 Code parent :');
-      if (v === null) return;
-      if (v.trim() !== settings.pin) { $('status').textContent = 'Code parent incorrect.'; return; }
-    }
+    if (settings.pin && !pinOk) { askPin(); return; }
+    pinOk = false;
     if (listening) { try { rec.stop(); } catch {} }
     const profile = currentProfile();
-    $('voiceTestStatus').textContent = '';
-    $('profileSection').style.display = profile ? 'flex' : 'none';
+    $('voiceTestStatus').textContent = ''; $('settingsError').textContent = '';
+    document.querySelectorAll('#settingsDialog .tab[data-tab="bilan"], #settingsDialog .tab[data-tab="enfant"]').forEach(t => { t.hidden = !profile; });
+    $('settingsDialog').querySelector('.tabs').style.gridTemplateColumns = profile ? '' : 'repeat(2, 1fr)';
+    showTab(profile ? 'bilan' : 'regles');
     if (profile) {
-      $('bilanTitle').textContent = '📊 Bilan de ' + profile.name + ' (7 derniers jours)';
+      $('settingsDialog').querySelector('.tab[data-tab="enfant"]').textContent = '👤 ' + (profile.name.length > 8 ? 'Enfant' : profile.name);
       renderBilan(profile);
+      if (unsumCount(profile.id) && !summarizing[profile.id]) {
+        const p = summarize(profile.id);
+        renderBilan(profile);
+        p.then(() => { if ($('settingsDialog').open && currentProfile() === profile) { renderBilan(profile); fillMemoryFields(); } });
+      }
       $('profileTitle').textContent = '👤 Profil de ' + profile.name;
       $('editAge').value = profile.age;
       $('editClass').value = profile.schoolClass;
       $('testsEdit').value = tests.map(t => shortDate(t.date) + ' ' + t.sujet).join('\n');
       $('memoryTitle').textContent = '🧠 Ce que Léo a retenu sur ' + profile.name;
-      $('memForts').value = memory.forts.join('\n');
-      $('memDiff').value = memory.difficultes.join('\n');
-      $('memInfos').value = memory.infos.join('\n');
+      fillMemoryFields();
     }
     $('strictInput').checked = !!settings.strict;
     $('intimeSelect').value = settings.intime || 'parents';
     $('magieSelect').value = settings.magie || 'garder';
     $('pinInput').value = settings.pin || '';
+    $('emailInput').value = settings.email || '';
+    $('dailyInput').checked = settings.daily !== false;
+    $('mailStatus').textContent = '';
     loadVoices();
     $('rateInput').value = settings.rate;
     $('voiceMode').value = settings.voiceMode;
@@ -1383,7 +1690,11 @@
   $('settingsForm').addEventListener('submit', event => {
     event.preventDefault();
     const pin = $('pinInput').value.trim();
-    if (pin && !/^\d{4}$/.test(pin)) { $('voiceTestStatus').textContent = '⚠️ Le code parent doit faire exactement 4 chiffres.'; return; }
+    if (!/^\d{4}$/.test(pin)) { showTab('regles'); $('settingsError').textContent = '⚠️ Le code doit faire 4 chiffres.'; return; }
+    const email = $('emailInput').value.trim();
+    if (!EMAIL_RE.test(email)) { showTab('regles'); $('settingsError').textContent = '⚠️ Adresse mail invalide.'; return; }
+    settings.email = email;
+    settings.daily = $('dailyInput').checked;
     const prof = currentProfile();
     if (prof) {
       const age = Number($('editAge').value);
@@ -1407,6 +1718,15 @@
     saveJSON(SETTINGS_KEY, settings);
     $('settingsDialog').close();
   });
+  $('testMail').addEventListener('click', async () => {
+    const email = $('emailInput').value.trim();
+    if (!EMAIL_RE.test(email)) { $('mailStatus').textContent = '⚠️ Adresse mail invalide.'; return; }
+    const old = settings.email; settings.email = email;
+    $('mailStatus').textContent = 'Envoi en cours…';
+    const r = await sendMail({ kind: 'test' });
+    settings.email = old;
+    $('mailStatus').textContent = r.ok ? '✅ Mail envoyé ! Regarde aussi dans les spams la première fois.' : '⚠️ Envoi impossible : ' + r.error;
+  });
   $('testVoice').addEventListener('click', () => {
     unlockSpeech();
     $('voiceTestStatus').textContent = $('voiceMode').value === 'openai' ? 'Chargement de la voix…' : '';
@@ -1425,7 +1745,7 @@
     if (busy || !p || !confirm('Supprimer le profil de ' + p.name + ', sa mémoire, son bilan et ses conversations ?')) return;
     profiles = profiles.filter(x => x.id !== p.id);
     saveJSON(PROFILES_KEY, profiles);
-    [historyKey, memoryKey, testsKey, statsKey, alertsKey, topicsKey].forEach(k => removeKey(k(p.id)));
+    [historyKey, memoryKey, testsKey, statsKey, alertsKey, topicsKey, unsumKey, sessionsKey].forEach(k => removeKey(k(p.id)));
     $('settingsDialog').close();
     chooseProfile(null);
   });
@@ -1452,6 +1772,7 @@
   $('newHomework').addEventListener('click', () => {
     if (!currentProfile() || busy) return;
     if (conversation.length && !confirm('Commencer un nouveau devoir ? La conversation actuelle sera effacée (Léo garde sa mémoire).')) return;
+    summarize(activeId);
     conversation = []; saveJSON(historyKey(activeId), conversation);
     stopSpeaking();
     displayConversation();
@@ -1511,10 +1832,41 @@
     if (!e.target.closest('#chat, #toolbar, dialog, textarea, .tblwrap, #zoom')) e.preventDefault();
   }, { passive: false });
 
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'hidden') return;
+    if (activeId) await summarize(activeId);
+    sendDailyMails('evening');
+  });
+  function needSetup() { return !/^\d{4}$/.test(settings.pin || '') || !EMAIL_RE.test(settings.email || ''); }
+  function openSetup() {
+    $('setupEmail').value = settings.email || '';
+    $('setupPin').value = $('setupPin2').value = settings.pin || '';
+    $('setupError').textContent = '';
+    $('setupDialog').showModal();
+  }
+  $('setupDialog').addEventListener('cancel', e => e.preventDefault());   // impossible de fermer sans configurer
+  $('setupForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = $('setupEmail').value.trim(), pin = $('setupPin').value.trim();
+    if (!EMAIL_RE.test(email)) { $('setupError').textContent = 'Adresse mail invalide.'; return; }
+    if (!/^\d{4}$/.test(pin)) { $('setupError').textContent = 'Le code doit faire exactement 4 chiffres.'; return; }
+    if (pin !== $('setupPin2').value.trim()) { $('setupError').textContent = 'Les deux codes ne sont pas identiques.'; return; }
+    settings.email = email; settings.pin = pin;
+    saveJSON(SETTINGS_KEY, settings);
+    $('setupSubmit').disabled = true; $('setupError').textContent = 'Envoi d’un mail de bienvenue…';
+    const r = await sendMail({ kind: 'test' });
+    $('setupSubmit').disabled = false;
+    $('setupDialog').close();
+    $('status').textContent = r.ok ? '✅ C’est prêt ! Un mail de bienvenue a été envoyé (regarde dans les spams si besoin).' : '⚠️ Configuration enregistrée, mais le mail n’a pas pu partir (' + r.error + ').';
+    if (!profiles.length) $('profileDialog').showModal();
+  });
+
   renderProfiles();
   let savedId = null;
   try { savedId = localStorage.getItem(ACTIVE_KEY); } catch {}
   chooseProfile(savedId);
+  if (needSetup()) openSetup();
+  else sendDailyMails('open');
 })();
 </script>
 </body>
