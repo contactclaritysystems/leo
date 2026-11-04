@@ -31,6 +31,10 @@
   #toolbar::-webkit-scrollbar { display: none; }
   .chip { border-radius: 999px; padding: 6px 11px; font-size: 13px; background: #334155; white-space: nowrap; flex-shrink: 0; }
   .chip.on { background: #16a34a; }
+  .games { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .games button { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 12px 8px; text-align: left; font-size: 14px; line-height: 1.3; }
+  .games button b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .games button span { color: #94a3b8; font-size: 12px; }
   #chat { flex: 1; min-height: 0; padding: 12px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 12px; }
   .msg { max-width: 88%; padding: 9px 13px; border-radius: 16px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
   .user { align-self: flex-end; background: #2563eb; }
@@ -192,6 +196,14 @@
   </form>
 </dialog>
 
+<dialog id="gameDialog">
+  <form method="dialog" style="gap:12px">
+    <h2>🎲 À quoi on joue ?</h2>
+    <div class="games" id="gameList"></div>
+    <div class="dialog-actions"><button class="small-btn grey" value="cancel">Annuler</button></div>
+  </form>
+</dialog>
+
 <dialog id="pinDialog">
   <form id="pinForm">
     <h2>🔒 Espace parent</h2>
@@ -216,7 +228,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v23</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v25</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -725,7 +737,10 @@
       : `Devoirs : ne donne pas immédiatement la solution. Demande où l'enfant bloque si nécessaire, puis donne UN indice à la fois. S'il se trompe, réexplique autrement avec un exemple et laisse-le réessayer. Si plusieurs essais échouent, montre la méthode et la solution expliquée, sans le culpabiliser.`);
     L.push(`En calcul posé, respecte la présentation scolaire française et guide chaque étape (avec l'outil <pose>).`);
     L.push(`Photos : l'enfant peut envoyer jusqu'à 3 photos à la fois (page entière, exercice sur deux pages). Indique ce que tu parviens à lire, reconnais tes incertitudes et ne devine jamais un énoncé illisible. Pour un travail écrit à la main ou une construction géométrique, dis honnêtement si la photo ne te permet pas de juger précisément.`);
-    L.push(`Jeux : quand l'enfant veut jouer, propose un quiz, des devinettes, du calcul mental, un mot mystère, un vrai ou faux… adaptés à son niveau, de préférence sur ses points à travailler, ses contrôles à venir ou ses centres d'intérêt. Une seule question à la fois, attends sa réponse, félicite et compte les points. Les devoirs passent avant le jeu : s'il a des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
+    L.push(`JEUX : un jeu doit être un VRAI jeu, amusant et différent d'un exercice. Jeux possibles : devinettes, charades, « Qui suis-je ? » (animal, métier, objet, personnage historique, pays…), mot mystère (l'enfant devine un mot avec des indices ou lettre par lettre, façon pendu), vrai ou faux, quiz de culture générale (animaux, sciences, géographie, histoire, espace, sport…), l'intrus, anagrammes, mots croisés simples, défi calcul mental, petite histoire à inventer ensemble. ` +
+      `Si l'enfant demande un jeu sans dire lequel, propose 3 jeux DIFFÉRENTS en une phrase et laisse-le choisir (jamais l'activité qu'on vient de faire). Si l'enfant dit « stop », « j'en ai marre », « autre chose », arrête tout de suite et ne revient pas sur la même activité. ` +
+      `Déroulement : une partie = 5 questions. Affiche la progression à chaque question, par exemple « Question 2/5 · ⭐ 1 point ». Une seule question à la fois, attends sa réponse, réagis avec enthousiasme, et s'il se trompe donne la bonne réponse avec une petite explication amusante avant la question suivante (en jeu, on n'insiste pas avec des indices sauf s'il demande un indice). À la fin : son score, un bravo, et propose de rejouer ou de changer de jeu. ` +
+      `Varie les sujets d'une question à l'autre et adapte la difficulté à son niveau (plus facile s'il se trompe, plus dur s'il réussit tout). Tu peux glisser de temps en temps une question sur ses points à travailler ou ses goûts, mais le jeu doit rester varié et amusant. Les devoirs passent avant le jeu : s'il dit avoir des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
     L.push('');
     L.push(`Matières : tu es un vrai professeur dans TOUTES les matières, selon les programmes officiels et le niveau de l'enfant.`);
     L.push(`- Maths : numération, calcul mental et posé, tables, fractions, décimaux, proportionnalité, pourcentages, grandeurs et conversions (tableau de conversion), problèmes (lire l'énoncé, repérer la question, choisir l'opération, phrase réponse avec l'unité), géométrie (figures, constructions à la règle, à l'équerre et au compas décrites étape par étape avec un dessin, angles, symétries, périmètres, aires, volumes). Au collège : nombres relatifs, puissances, calcul littéral, équations, Pythagore, Thalès, trigonométrie, fonctions, statistiques, probabilités, Scratch.`);
@@ -1401,6 +1416,9 @@
     return element;
   }
   // Fait défiler pour que le HAUT d'une réponse soit visible (et pas la fin)
+  let stickBottom = false;
+  // Si la zone de conversation change de taille (clavier qui se ferme…), on garde la bonne position
+  if (window.ResizeObserver) new ResizeObserver(() => { if (stickBottom) chat.scrollTop = chat.scrollHeight; }).observe(chat);
   function showTop(element) {
     if (!element) return;
     const delta = element.getBoundingClientRect().top - chat.getBoundingClientRect().top - 10;
@@ -1529,6 +1547,7 @@
     addMessage('user', userText, images);
     input.value = ''; autoGrow();
     const pending = addMessage('assistant', 'Léo réfléchit…', null, false);
+    stickBottom = true; chat.scrollTop = chat.scrollHeight;
     const lastDrawing = conversation.map(m => Array.isArray(m.blocks) && m.blocks.some(b => b.type === 'dessin')).lastIndexOf(true);
     const requestMessages = [
       { role: 'system', content: basePrompt(currentProfile()) },
@@ -1556,6 +1575,7 @@
       const drawLater = needsDrawing(reply, userText, blocks, hadAscii);
       pending.remove();
       const bubble = addMessage('assistant', reply, null, true, blocks);
+      stickBottom = false;
       showTop(bubble);
       if (settings.autoRead || viaVoice) speak(speechSource(reply));
       // On conserve le texte des échanges, jamais les photos elles-mêmes.
@@ -1568,6 +1588,7 @@
     } catch (error) {
       pending.remove();
       input.value = text; autoGrow(); // on remet le texte pour pouvoir réessayer (les photos restent prêtes)
+      stickBottom = false;
       addMessage('assistant', 'Je n’ai pas réussi à répondre. Tu peux réessayer.', null, false);
       $('status').textContent = friendlyError(error);
     } finally {
@@ -1802,7 +1823,23 @@
     stopSpeaking();
     displayConversation();
   });
-  $('playBtn').addEventListener('click', () => { if (currentProfile() && !busy) { input.value = 'J’ai envie de jouer ! 🎲'; sendMessage(); } });
+  const GAMES = [
+    ['🧩 Devinettes', 'Des énigmes rigolotes', 'des devinettes'],
+    ['🕵️ Qui suis-je ?', 'Devine avec des indices', 'Qui suis-je ?'],
+    ['🔤 Mot mystère', 'Trouve le mot lettre par lettre', 'au mot mystère'],
+    ['✅ Vrai ou faux', 'Sur plein de sujets', 'au vrai ou faux'],
+    ['🌍 Quiz du monde', 'Animaux, espace, pays…', 'à un quiz de culture générale'],
+    ['🔢 Défi calcul', 'Calcul mental, de plus en plus dur', 'à un défi de calcul mental'],
+    ['🙃 L’intrus', 'Trouve celui qui n’a rien à faire là', 'à trouver l’intrus'],
+    ['🎁 Surprise', 'Léo choisit pour toi', 'à un jeu surprise (choisis-en un amusant)'],
+  ];
+  for (const [title, desc, ask] of GAMES) {
+    const b = el('button'); b.type = 'button';
+    b.append(el('b', null, title), el('span', null, desc));
+    b.addEventListener('click', () => { $('gameDialog').close(); if (currentProfile() && !busy) { input.value = 'On joue ' + ask + ' ! 🎲'; sendMessage(); } });
+    $('gameList').append(b);
+  }
+  $('playBtn').addEventListener('click', () => { if (currentProfile() && !busy) $('gameDialog').showModal(); });
   $('dicteeBtn').addEventListener('click', () => { if (currentProfile() && !busy) { input.value = 'Je veux faire une dictée ✍️'; sendMessage(); } });
   $('autoReadBtn').addEventListener('click', () => {
     settings.autoRead = !settings.autoRead; saveJSON(SETTINGS_KEY, settings);
@@ -1837,17 +1874,27 @@
   // iPhone : quand le clavier s'ouvre, on adapte la hauteur pour que la zone de saisie reste visible
   const vv = window.visualViewport;
   if (vv) {
-    let wasKeyboard = false;
+    let wasKeyboard = false, timers = [];
     const place = () => {
-      document.body.style.height = vv.height + 'px';
-      document.body.style.top = vv.offsetTop + 'px';    // la page reste collée à la zone visible
-      const keyboard = window.innerHeight - vv.height > 120;
+      const keyboard = window.innerHeight - vv.height > 120 || (document.activeElement === input && screen.height - vv.height > 220);
+      if (keyboard) {
+        document.body.style.height = vv.height + 'px';
+        document.body.style.top = vv.offsetTop + 'px';    // la page reste collée à la zone visible
+      } else {
+        document.body.style.height = '';                  // pas de clavier : tout l'écran (100dvh)
+        document.body.style.top = '';
+      }
       document.body.classList.toggle('kb', keyboard);
-      if (keyboard && !wasKeyboard && document.activeElement === input) chat.scrollTop = chat.scrollHeight;
+      if ((keyboard && !wasKeyboard && document.activeElement === input) || stickBottom) chat.scrollTop = chat.scrollHeight;
       wasKeyboard = keyboard;
     };
-    vv.addEventListener('resize', place);
+    // iOS anime le clavier : on revérifie un peu après, sinon la page reste trop petite
+    const placeSoon = () => { place(); timers.forEach(clearTimeout); timers = [80, 250, 500, 900].map(ms => setTimeout(place, ms)); };
+    vv.addEventListener('resize', placeSoon);
     vv.addEventListener('scroll', place);
+    input.addEventListener('focus', placeSoon);
+    input.addEventListener('blur', placeSoon);
+    window.addEventListener('orientationchange', placeSoon);
     place();
   }
   window.addEventListener('scroll', () => { if (window.scrollY || window.scrollX) window.scrollTo(0, 0); }, { passive: true });
