@@ -163,15 +163,32 @@
 
 <dialog id="setupDialog">
   <form id="setupForm">
-    <h2>👋 Bienvenue dans Léo</h2>
-    <p class="note">Avant de commencer, le parent configure deux choses. Elles protègent ton enfant et te permettent de suivre son travail.</p>
-    <label>📧 Ton adresse mail <input id="setupEmail" type="email" inputmode="email" autocomplete="email" required placeholder="parent@exemple.fr"></label>
-    <p class="note">Tu recevras un petit résumé les jours où ton enfant travaille, et une alerte si un sujet important apparaît. Choisis une adresse que ton enfant ne consulte pas.</p>
-    <label>🔒 Code parent (4 chiffres) <input id="setupPin" inputmode="numeric" maxlength="4" autocomplete="off" required></label>
-    <label>Confirme le code <input id="setupPin2" inputmode="numeric" maxlength="4" autocomplete="off" required></label>
-    <p class="note">Ce code protège l'espace parent : ne le donne pas à ton enfant.</p>
+    <h2 id="setupTitle">👋 Bienvenue dans Léo</h2>
+    <p class="note" id="setupIntro">Avant de commencer, le parent configure deux choses. Elles protègent ton enfant et te permettent de suivre son travail.</p>
+    <div id="setupStep1" style="display:flex;flex-direction:column;gap:12px">
+      <label>📧 Ton adresse mail <input id="setupEmail" type="email" inputmode="email" autocomplete="email" placeholder="parent@exemple.fr"></label>
+      <p class="note">Tu recevras un petit résumé les jours où ton enfant travaille, et une alerte si un sujet important apparaît. Choisis une adresse que ton enfant ne consulte pas.</p>
+      <div id="setupPinBox" style="display:flex;flex-direction:column;gap:12px">
+        <label>🔒 Code parent (4 chiffres) <input id="setupPin" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+        <label>Confirme le code <input id="setupPin2" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+        <p class="note">Ce code protège l'espace parent : ne le donne pas à ton enfant.</p>
+      </div>
+    </div>
+    <div id="setupStep2" style="display:none;flex-direction:column;gap:12px">
+      <p id="setupSentTo">📩 Un code à 6 chiffres vient d'être envoyé.</p>
+      <label>Code reçu par mail <input id="setupCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+      <p class="note">Regarde aussi dans les spams. Le code est valable 20 minutes.</p>
+      <div class="row">
+        <button type="button" id="setupResend" class="small-btn grey">Renvoyer le code</button>
+        <button type="button" id="setupBack" class="small-btn grey">Changer d'adresse</button>
+      </div>
+    </div>
     <p class="note" id="setupError" style="color:#fbbf24"></p>
-    <div class="dialog-actions"><button class="small-btn" type="submit" id="setupSubmit">C'est parti</button></div>
+    <div class="dialog-actions">
+      <button type="button" id="setupCancel" class="small-btn grey" style="display:none">Annuler</button>
+      <button type="button" id="setupSkip" class="small-btn grey" style="display:none">Continuer sans mail pour l'instant</button>
+      <button class="small-btn" type="submit" id="setupSubmit">Recevoir le code</button>
+    </div>
   </form>
 </dialog>
 
@@ -199,7 +216,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v22</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v23</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -268,7 +285,8 @@
         </div>
         <div class="card">
           <h3>📧 Mails au parent</h3>
-          <input id="emailInput" type="email" inputmode="email" autocomplete="email" placeholder="parent@exemple.fr">
+          <div id="emailShow" class="muted"></div>
+          <button type="button" id="changeEmail" class="small-btn grey">✏️ Changer d'adresse</button>
           <label class="check"><input type="checkbox" id="dailyInput"><span>Résumé chaque jour où l'enfant a travaillé</span></label>
           <p class="note">Les alertes importantes sont toujours envoyées tout de suite. Les mails restent discrets (« Suivi scolaire ») et ne contiennent jamais les détails sensibles : ceux-ci restent ici, derrière le code.</p>
           <button type="button" id="testMail" class="small-btn grey">✉️ Envoyer un mail de test</button>
@@ -335,7 +353,7 @@
 
   let profiles = readJSON(PROFILES_KEY, []);
   if (!Array.isArray(profiles)) profiles = [];
-  let settings = Object.assign({ autoRead: true, voiceMode: 'openai', aiVoice: 'ash', voiceURI: '', rate: 1.2, strict: true, pin: '', intime: 'parents', magie: 'garder', email: '', daily: true }, readJSON(SETTINGS_KEY, {}));
+  let settings = Object.assign({ autoRead: true, voiceMode: 'openai', aiVoice: 'ash', voiceURI: '', rate: 1.2, strict: true, pin: '', intime: 'parents', magie: 'garder', email: '', emailPass: '', daily: true }, readJSON(SETTINGS_KEY, {}));
   if (settings.v !== 7 && settings.v !== 14) { settings.aiVoice = 'ash'; settings.voiceMode = 'openai'; } // Léo est un garçon
   if (settings.v !== 14) { settings.rate = 1.2; settings.v = 14; saveJSON(SETTINGS_KEY, settings); } // voix plus rapide par défaut
   let activeId = null, conversation = [], memory = emptyMemory(), tests = [], pendingImages = [], busy = false;
@@ -578,15 +596,28 @@
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   async function sendMail(payload) {
     if (!settings.email || !EMAIL_RE.test(settings.email)) return { ok: false, error: 'adresse mail manquante' };
+    if (!settings.emailPass) return { ok: false, error: 'adresse mail pas encore confirmée' };
     try {
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: 'POST', keepalive: true,
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
-        body: JSON.stringify({ action: 'mail', to: settings.email, ...payload })
+        body: JSON.stringify({ action: 'mail', to: settings.email, pass: settings.emailPass, ...payload })
       }, 30000);
       const data = await response.json().catch(() => ({}));
       return response.ok ? { ok: true } : { ok: false, error: data.error || ('erreur ' + response.status) };
     } catch (e) { return { ok: false, error: friendlyError(e) }; }
+  }
+  // Confirmation d'adresse : le serveur envoie un code, le parent le recopie
+  async function mailApi(body) {
+    try {
+      const response = await fetchWithTimeout(FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify(body)
+      }, 30000);
+      const data = await response.json().catch(() => ({}));
+      return response.ok ? { ok: true, ...data } : { ok: false, server: response.status >= 500, error: data.error || ('erreur ' + response.status) };
+    } catch (e) { return { ok: false, server: true, error: friendlyError(e) }; }
   }
   function sendAlertMail(id) {
     const p = profiles.find(x => x.id === id);
@@ -1677,7 +1708,7 @@
     $('intimeSelect').value = settings.intime || 'parents';
     $('magieSelect').value = settings.magie || 'garder';
     $('pinInput').value = settings.pin || '';
-    $('emailInput').value = settings.email || '';
+    $('emailShow').textContent = settings.email ? settings.email + (settings.emailPass ? ' ✅' : ' (non confirmée)') : 'Aucune adresse';
     $('dailyInput').checked = settings.daily !== false;
     $('mailStatus').textContent = '';
     loadVoices();
@@ -1691,9 +1722,6 @@
     event.preventDefault();
     const pin = $('pinInput').value.trim();
     if (!/^\d{4}$/.test(pin)) { showTab('regles'); $('settingsError').textContent = '⚠️ Le code doit faire 4 chiffres.'; return; }
-    const email = $('emailInput').value.trim();
-    if (!EMAIL_RE.test(email)) { showTab('regles'); $('settingsError').textContent = '⚠️ Adresse mail invalide.'; return; }
-    settings.email = email;
     settings.daily = $('dailyInput').checked;
     const prof = currentProfile();
     if (prof) {
@@ -1719,14 +1747,11 @@
     $('settingsDialog').close();
   });
   $('testMail').addEventListener('click', async () => {
-    const email = $('emailInput').value.trim();
-    if (!EMAIL_RE.test(email)) { $('mailStatus').textContent = '⚠️ Adresse mail invalide.'; return; }
-    const old = settings.email; settings.email = email;
     $('mailStatus').textContent = 'Envoi en cours…';
     const r = await sendMail({ kind: 'test' });
-    settings.email = old;
     $('mailStatus').textContent = r.ok ? '✅ Mail envoyé ! Regarde aussi dans les spams la première fois.' : '⚠️ Envoi impossible : ' + r.error;
   });
+  $('changeEmail').addEventListener('click', () => openSetup('change'));
   $('testVoice').addEventListener('click', () => {
     unlockSpeech();
     $('voiceTestStatus').textContent = $('voiceMode').value === 'openai' ? 'Chargement de la voix…' : '';
@@ -1837,27 +1862,80 @@
     if (activeId) await summarize(activeId);
     sendDailyMails('evening');
   });
-  function needSetup() { return !/^\d{4}$/.test(settings.pin || '') || !EMAIL_RE.test(settings.email || ''); }
-  function openSetup() {
-    $('setupEmail').value = settings.email || '';
-    $('setupPin').value = $('setupPin2').value = settings.pin || '';
+  function needSetup() { return !/^\d{4}$/.test(settings.pin || '') || !EMAIL_RE.test(settings.email || '') || !settings.emailPass; }
+  let setupMode = 'first', setupState = null;   // setupState = { email, pin, token, exp }
+  function setupStep(n) {
+    $('setupStep1').style.display = n === 1 ? 'flex' : 'none';
+    $('setupStep2').style.display = n === 2 ? 'flex' : 'none';
+    $('setupSubmit').textContent = n === 1 ? 'Recevoir le code' : 'Valider';
+    $('setupSkip').style.display = 'none';
     $('setupError').textContent = '';
+    if (n === 2) setTimeout(() => $('setupCode').focus(), 50);
+  }
+  function openSetup(mode) {
+    setupMode = mode || 'first'; setupState = null;
+    const change = setupMode === 'change';
+    $('setupTitle').textContent = change ? '📧 Changer d’adresse mail' : '👋 Bienvenue dans Léo';
+    $('setupIntro').style.display = change ? 'none' : '';
+    $('setupPinBox').style.display = change || /^\d{4}$/.test(settings.pin || '') ? 'none' : 'flex';
+    $('setupCancel').style.display = change ? '' : 'none';
+    $('setupEmail').value = change ? '' : (settings.email || '');
+    $('setupPin').value = $('setupPin2').value = ''; $('setupCode').value = '';
+    setupStep(1);
     $('setupDialog').showModal();
   }
-  $('setupDialog').addEventListener('cancel', e => e.preventDefault());   // impossible de fermer sans configurer
+  async function sendSetupCode() {
+    $('setupSubmit').disabled = true; $('setupError').textContent = 'Envoi du code…';
+    const r = await mailApi({ action: 'verify_send', to: setupState.email });
+    $('setupSubmit').disabled = false;
+    if (!r.ok) {
+      $('setupError').textContent = '⚠️ ' + r.error;
+      if (r.server && setupMode === 'first') $('setupSkip').style.display = '';   // panne : on ne bloque pas l'appli
+      return false;
+    }
+    setupState.token = r.token; setupState.exp = r.exp;
+    setupStep(2);
+    $('setupSentTo').textContent = '📩 Un code à 6 chiffres vient d’être envoyé à ' + setupState.email + '.';
+    return true;
+  }
+  $('setupDialog').addEventListener('cancel', e => { if (setupMode !== 'change') e.preventDefault(); });   // impossible de fermer sans configurer
+  $('setupCancel').addEventListener('click', () => $('setupDialog').close());
+  $('setupBack').addEventListener('click', () => setupStep(1));
+  $('setupResend').addEventListener('click', () => { if (setupState) sendSetupCode(); });
+  $('setupSkip').addEventListener('click', () => {
+    if (setupState && setupState.pin) settings.pin = setupState.pin;
+    saveJSON(SETTINGS_KEY, settings);
+    $('setupDialog').close();
+    $('status').textContent = '⚠️ Le mail n’a pas pu être configuré : Léo te le redemandera à la prochaine ouverture.';
+    if (!profiles.length) $('profileDialog').showModal();
+  });
   $('setupForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const email = $('setupEmail').value.trim(), pin = $('setupPin').value.trim();
-    if (!EMAIL_RE.test(email)) { $('setupError').textContent = 'Adresse mail invalide.'; return; }
-    if (!/^\d{4}$/.test(pin)) { $('setupError').textContent = 'Le code doit faire exactement 4 chiffres.'; return; }
-    if (pin !== $('setupPin2').value.trim()) { $('setupError').textContent = 'Les deux codes ne sont pas identiques.'; return; }
-    settings.email = email; settings.pin = pin;
-    saveJSON(SETTINGS_KEY, settings);
-    $('setupSubmit').disabled = true; $('setupError').textContent = 'Envoi d’un mail de bienvenue…';
-    const r = await sendMail({ kind: 'test' });
+    if ($('setupStep1').style.display !== 'none') {
+      const email = $('setupEmail').value.trim().toLowerCase();
+      if (!EMAIL_RE.test(email)) { $('setupError').textContent = 'Adresse mail invalide.'; return; }
+      let pin = settings.pin;
+      if ($('setupPinBox').style.display !== 'none') {
+        pin = $('setupPin').value.trim();
+        if (!/^\d{4}$/.test(pin)) { $('setupError').textContent = 'Le code parent doit faire exactement 4 chiffres.'; return; }
+        if (pin !== $('setupPin2').value.trim()) { $('setupError').textContent = 'Les deux codes parent ne sont pas identiques.'; return; }
+      }
+      setupState = { email, pin };
+      await sendSetupCode();
+      return;
+    }
+    const code = $('setupCode').value.trim();
+    if (!/^\d{6}$/.test(code)) { $('setupError').textContent = 'Le code reçu fait 6 chiffres.'; return; }
+    $('setupSubmit').disabled = true; $('setupError').textContent = 'Vérification…';
+    const r = await mailApi({ action: 'verify_check', to: setupState.email, code, token: setupState.token, exp: setupState.exp });
     $('setupSubmit').disabled = false;
+    if (!r.ok || !r.pass) { $('setupError').textContent = '⚠️ ' + r.error; return; }
+    settings.email = setupState.email; settings.emailPass = r.pass;
+    if (setupState.pin) settings.pin = setupState.pin;
+    saveJSON(SETTINGS_KEY, settings);
     $('setupDialog').close();
-    $('status').textContent = r.ok ? '✅ C’est prêt ! Un mail de bienvenue a été envoyé (regarde dans les spams si besoin).' : '⚠️ Configuration enregistrée, mais le mail n’a pas pu partir (' + r.error + ').';
+    if (setupMode === 'change') { $('emailShow').textContent = settings.email; $('mailStatus').textContent = '✅ Nouvelle adresse confirmée.'; return; }
+    $('status').textContent = '✅ C’est prêt ! Ton adresse est confirmée.';
     if (!profiles.length) $('profileDialog').showModal();
   });
 
@@ -1865,7 +1943,7 @@
   let savedId = null;
   try { savedId = localStorage.getItem(ACTIVE_KEY); } catch {}
   chooseProfile(savedId);
-  if (needSetup()) openSetup();
+  if (needSetup()) openSetup('first');
   else sendDailyMails('open');
 })();
 </script>
