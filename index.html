@@ -228,7 +228,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v26</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v27</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -553,6 +553,23 @@
     if (a < 0 || b <= a) return null;
     try { return JSON.parse(String(raw).slice(a, b + 1)); } catch { return null; }
   }
+  // Garde-fou : un point fort n'est jamais perdu. Il ne peut disparaître que s'il a été regroupé dans un autre
+  // (indiqué par Léo dans "retires"), ou s'il ne l'est plus vraiment (et alors il passe dans "à travailler").
+  function protectStrengths(oldMem, newMem, retires) {
+    const out = { forts: newMem.forts.slice(), difficultes: newMem.difficultes.slice(), infos: newMem.infos.slice() };
+    const list = Array.isArray(retires) ? retires.filter(r => r && typeof r.ancien === 'string') : [];
+    const covered = (item, arr) => arr.some(x => norm(x) === norm(item) || norm(x).includes(norm(item)));
+    for (const f of oldMem.forts) {
+      if (covered(f, out.forts)) continue;
+      const r = list.find(x => norm(x.ancien) === norm(f));
+      if (r && r.raison === 'regroupe' && typeof r.dans === 'string' && covered(r.dans, out.forts)) continue;   // regroupé : OK
+      if (r && r.raison === 'plus_vrai' && covered(f, out.difficultes)) continue;                               // devenu à travailler : OK
+      out.forts.push(f);                                                                                       // sinon on le garde
+    }
+    for (const x of oldMem.infos) if (!covered(x, out.infos) && !list.some(r => norm(r.ancien) === norm(x))) out.infos.push(x);
+    out.forts = out.forts.slice(0, 12); out.infos = out.infos.slice(0, 6);
+    return out;
+  }
   // Une fois : réécrit proprement la mémoire déjà enregistrée (anciennes versions = notes trop détaillées)
   async function tidyMemory(id) {
     const flag = 'leo_memtidy_v26_' + id;
@@ -562,7 +579,7 @@
     if (!(mem.forts.length + mem.difficultes.length + mem.infos.length)) { saveJSON(flag, true); return; }
     summarizing[id] = true;
     try {
-      const sys = `Voici les notes d'un professeur sur ${profile.name} (${profile.age} ans, ${profile.schoolClass}). Réécris-les comme dans un bulletin : compétences générales, jamais de calcul précis, sans doublons. Réponds UNIQUEMENT par ce JSON : {"forts":[],"difficultes":[],"infos":[]} (forts 1 à 6, difficultes 0 à 6, infos 0 à 4). Exemple : "Très fort et rapide en calcul mental : multiplications de nombres entre 10 et 20".`;
+      const sys = `Voici les notes d'un professeur sur ${profile.name} (${profile.age} ans, ${profile.schoolClass}). Réécris-les comme dans un bulletin : compétences générales, jamais de calcul précis, sans doublons. Ne supprime AUCUN point fort : tu peux seulement regrouper ceux qui disent la même chose. Les notes qui ne sont qu'un calcul précis (ex : "16×19") se regroupent dans la compétence générale correspondante. Réponds UNIQUEMENT par ce JSON : {"forts":[],"difficultes":[],"infos":[],"retires":[{"ancien":"texte exact","raison":"regroupe","dans":"nouveau point"}]} (forts jusqu'à 12, difficultes 0 à 6, infos 0 à 6). Exemple : "Très fort et rapide en calcul mental : multiplications de nombres entre 10 et 20".`;
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
@@ -572,7 +589,7 @@
       const d = parseJsonLoose((await response.json())?.choices?.[0]?.message?.content || '');
       if (!d) return;
       const clean = a => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 140)))];
-      const mem2 = { forts: clean(d.forts).slice(0, 6), difficultes: clean(d.difficultes).slice(0, 6), infos: clean(d.infos).slice(0, 4) };
+      const mem2 = protectStrengths(mem, { forts: clean(d.forts).slice(0, 12), difficultes: clean(d.difficultes).slice(0, 6), infos: clean(d.infos).slice(0, 6) }, d.retires);
       if (!(mem2.forts.length + mem2.difficultes.length + mem2.infos.length)) return;
       saveJSON(memoryKey(id), mem2); if (id === activeId) memory = mem2;
       saveJSON(flag, true);
@@ -593,11 +610,12 @@
       const sys = `Tu aides un parent à suivre le travail de son enfant avec Léo, un professeur IA. Enfant : ${profile.name}, ${profile.age} ans, ${profile.schoolClass}.\n` +
         `Ce que Léo sait déjà de lui : points forts : ${mem.forts.join(' ; ') || 'rien'} ; à travailler : ${mem.difficultes.join(' ; ') || 'rien'} ; goûts : ${mem.infos.join(' ; ') || 'rien'}.\n` +
         `Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour :\n` +
-        `{"resume":"","resume_mail":"","matieres":[],"notions":[],"memoire":{"forts":[],"difficultes":[],"infos":[]}}\n` +
+        `{"resume":"","resume_mail":"","matieres":[],"notions":[],"memoire":{"forts":[],"difficultes":[],"infos":[]},"retires":[]}\n` +
         `- resume : 1 à 3 phrases courtes pour le parent, qui décrivent TOUTE la séance de façon globale (type d'activité, niveau de difficulté, nombre de réussites si on le voit, comment ça s'est passé), et non le dernier échange. Ne cite pas de calcul précis. Exemples : « Jeu de calcul mental : 10 multiplications de nombres entre 10 et 20, toutes réussies, rapidement. » ; « Révision du triangle rectangle : a trouvé l'hypoténuse seul, a eu besoin d'aide pour Pythagore. » Les mentions (réponse juste) / (réponse fausse) dans l'échange sont fiables : sers-t'en pour compter.` + (merge ? ` Un résumé existe déjà pour cette séance : « ${prev.resume} ». Écris un résumé complet qui le remplace et inclut tout.` : '') + `\n` +
         `- matieres : parmi ${SUJETS.join(', ')}.\n` +
         `- notions : 1 à 4 notions réellement travaillées, formulées de façon générale (ex : "multiplication à 2 chiffres", "hypoténuse", "accord du participe passé"). N'invente aucune notion qui n'apparaît pas (pas de "tables de 7" si on n'a pas fait la table de 7).\n` +
-        `- memoire : réécris la mémoire COMPLÈTE de l'enfant en fusionnant ce que Léo savait déjà et ce que montre cet échange. C'est un portrait de ses compétences, comme l'écrirait un bon professeur dans un bulletin : jamais un calcul ou une réponse précise (pas "16×19", pas "réponse juste à 208"), pas de doublons ni de phrases qui disent la même chose, des formulations générales et utiles. forts : 1 à 6 compétences maîtrisées, avec le niveau quand c'est utile (ex : "Très fort et rapide en calcul mental : multiplications de nombres entre 10 et 20"). difficultes : 0 à 6 points à retravailler (seulement si des erreurs se répètent ; retire ceux qu'il réussit maintenant). infos : 0 à 4 goûts ou façons d'apprendre, regroupés (ex : "Aime les défis de calcul mental de plus en plus difficiles"). Garde ce qui reste vrai dans l'ancienne mémoire (y compris ce que le parent a écrit), et une seule réussite ne suffit pas à créer un point fort.\n` +
+        `- memoire : réécris la mémoire COMPLÈTE de l'enfant en fusionnant ce que Léo savait déjà et ce que montre cet échange. C'est un portrait de ses compétences, comme l'écrirait un bon professeur dans un bulletin : jamais un calcul ou une réponse précise (pas "16×19", pas "réponse juste à 208"), pas de doublons ni de phrases qui disent la même chose, des formulations générales et utiles. forts : toutes les compétences maîtrisées, avec le niveau quand c'est utile (ex : "Très fort et rapide en calcul mental : multiplications de nombres entre 10 et 20"). difficultes : 0 à 6 points à retravailler (seulement si des erreurs se répètent ; retire ceux qu'il réussit maintenant). infos : 0 à 4 goûts ou façons d'apprendre, regroupés (ex : "Aime les défis de calcul mental de plus en plus difficiles"). IMPORTANT : tu ne dois JAMAIS oublier un point fort. Garde tous les anciens points forts (y compris ceux écrits par le parent), même s'ils n'ont pas été travaillés aujourd'hui ; tu peux seulement en regrouper plusieurs en une phrase plus claire. Un point fort ne devient « à travailler » que si l'enfant s'est trompé plusieurs fois dessus. Une seule réussite ne suffit pas à créer un point fort. Jusqu'à 12 points forts.\n` +
+        `- retires : pour chaque ancien point fort ou goût que tu ne recopies pas tel quel, ajoute {"ancien":"texte exact","raison":"regroupe" ou "plus_vrai","dans":"le nouveau point qui le contient"}.\n` +
         `- Pour une question réservée aux parents (bébés, sexualité, mort, religion, Père Noël…), écris seulement le sujet de la question dans resume, sans aucun détail.\n` +
         `- resume_mail : le même résumé, mais UNIQUEMENT le travail scolaire et les jeux (il sera envoyé par mail et l'enfant pourrait le lire) : jamais de sujet réservé aux parents, de magie de l'enfance (Père Noël…) ni de sujet de sécurité. Si la séance n'a porté que sur ces sujets, écris "Discussion libre avec Léo."` + (merge && prev.resume_mail ? ` Résumé mail déjà écrit : « ${prev.resume_mail} ».` : '');
       const transcript = items.map(x => (x.role === 'user' ? 'Enfant : ' : 'Léo : ') + x.text).join('\n');
@@ -611,7 +629,7 @@
       if (!data || typeof data.resume !== 'string' || !data.resume.trim()) return false;
       if (data.memoire && typeof data.memoire === 'object') {
         const clean = a => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 140)))];
-        const mem2 = { forts: clean(data.memoire.forts).slice(0, 6), difficultes: clean(data.memoire.difficultes).slice(0, 6), infos: clean(data.memoire.infos).slice(0, 4) };
+        const mem2 = protectStrengths(mem, { forts: clean(data.memoire.forts).slice(0, 12), difficultes: clean(data.memoire.difficultes).slice(0, 6), infos: clean(data.memoire.infos).slice(0, 6) }, data.retires);
         if (mem2.forts.length + mem2.difficultes.length + mem2.infos.length || !(mem.forts.length + mem.difficultes.length + mem.infos.length)) {
           saveJSON(memoryKey(id), mem2);
           if (id === activeId) memory = mem2;
@@ -1702,7 +1720,7 @@
     // --- Progrès ---
     const c3 = card('🧠 Ce que Léo a remarqué');
     if (!memory.forts.length && !memory.difficultes.length && !memory.infos.length) c3.append(el('div', 'muted', 'Léo apprend à connaître ' + profile.name + ' : ses remarques apparaîtront ici après les premières séances.'));
-    if (memory.forts.length) c3.append(el('div', null, '💪 Points forts : ' + memory.forts.slice(-6).join(', ')));
+    if (memory.forts.length) c3.append(el('div', null, '💪 Points forts : ' + memory.forts.join(' · ')));
     if (memory.difficultes.length) c3.append(el('div', null, '🎯 À travailler : ' + memory.difficultes.slice(-6).join(', ')));
     if (memory.infos.length) c3.append(el('div', null, '💡 ' + memory.infos.slice(-4).join(', ')));
   }
