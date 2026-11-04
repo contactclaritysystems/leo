@@ -111,10 +111,10 @@
   #settingsDialog form { gap: 0; max-height: 90dvh; }
   .sheet-head { padding: 14px 14px 10px; border-bottom: 1px solid #334155; flex-shrink: 0; }
   .sheet-body { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
-  .sheet-foot { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #334155; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+  .sheet-foot { padding: 10px 14px 12px; border-top: 1px solid #334155; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
   .sheet-foot .grow { flex: 1; font-size: 12px; color: #fbbf24; }
   .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 10px; background: #0f172a; padding: 4px; border-radius: 12px; }
-  .tab { background: transparent; border-radius: 9px; padding: 8px 2px; font-size: 13px; color: #94a3b8; white-space: nowrap; }
+  .tab { background: transparent; border-radius: 9px; padding: 8px 2px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; color: #94a3b8; white-space: nowrap; }
   .tab.on { background: #334155; color: #fff; font-weight: 600; }
   .tab[hidden], [data-pane][hidden] { display: none !important; }
   [data-pane] { display: flex; flex-direction: column; gap: 12px; }
@@ -228,7 +228,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v25</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v26</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -553,6 +553,31 @@
     if (a < 0 || b <= a) return null;
     try { return JSON.parse(String(raw).slice(a, b + 1)); } catch { return null; }
   }
+  // Une fois : réécrit proprement la mémoire déjà enregistrée (anciennes versions = notes trop détaillées)
+  async function tidyMemory(id) {
+    const flag = 'leo_memtidy_v26_' + id;
+    if (readJSON(flag, false) || summarizing[id]) return;
+    const profile = profiles.find(p => p.id === id), mem = id === activeId ? memory : loadMemory(id);
+    if (!profile) return;
+    if (!(mem.forts.length + mem.difficultes.length + mem.infos.length)) { saveJSON(flag, true); return; }
+    summarizing[id] = true;
+    try {
+      const sys = `Voici les notes d'un professeur sur ${profile.name} (${profile.age} ans, ${profile.schoolClass}). Réécris-les comme dans un bulletin : compétences générales, jamais de calcul précis, sans doublons. Réponds UNIQUEMENT par ce JSON : {"forts":[],"difficultes":[],"infos":[]} (forts 1 à 6, difficultes 0 à 6, infos 0 à 4). Exemple : "Très fort et rapide en calcul mental : multiplications de nombres entre 10 et 20".`;
+      const response = await fetchWithTimeout(FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ messages: [{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(mem) }] })
+      }, 60000);
+      if (!response.ok) return;
+      const d = parseJsonLoose((await response.json())?.choices?.[0]?.message?.content || '');
+      if (!d) return;
+      const clean = a => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 140)))];
+      const mem2 = { forts: clean(d.forts).slice(0, 6), difficultes: clean(d.difficultes).slice(0, 6), infos: clean(d.infos).slice(0, 4) };
+      if (!(mem2.forts.length + mem2.difficultes.length + mem2.infos.length)) return;
+      saveJSON(memoryKey(id), mem2); if (id === activeId) memory = mem2;
+      saveJSON(flag, true);
+    } catch {} finally { summarizing[id] = false; }
+  }
   async function summarize(id) {
     const profile = profiles.find(p => p.id === id);
     if (!profile || summarizing[id]) return false;
@@ -568,11 +593,11 @@
       const sys = `Tu aides un parent à suivre le travail de son enfant avec Léo, un professeur IA. Enfant : ${profile.name}, ${profile.age} ans, ${profile.schoolClass}.\n` +
         `Ce que Léo sait déjà de lui : points forts : ${mem.forts.join(' ; ') || 'rien'} ; à travailler : ${mem.difficultes.join(' ; ') || 'rien'} ; goûts : ${mem.infos.join(' ; ') || 'rien'}.\n` +
         `Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte autour :\n` +
-        `{"resume":"","resume_mail":"","matieres":[],"notions":[],"forts":[],"difficultes":[],"progres":[],"infos":[]}\n` +
-        `- resume : 1 à 3 phrases courtes et concrètes pour le parent : ce que l'enfant a travaillé ou demandé, et comment ça s'est passé (trouvé seul, avec des indices, erreurs). Exemple : « Révision du triangle rectangle : a trouvé l'hypoténuse seul, a eu besoin d'aide pour Pythagore. »` + (merge ? ` Un résumé existe déjà pour cette séance : « ${prev.resume} ». Écris un résumé complet qui le remplace et inclut tout.` : '') + `\n` +
+        `{"resume":"","resume_mail":"","matieres":[],"notions":[],"memoire":{"forts":[],"difficultes":[],"infos":[]}}\n` +
+        `- resume : 1 à 3 phrases courtes pour le parent, qui décrivent TOUTE la séance de façon globale (type d'activité, niveau de difficulté, nombre de réussites si on le voit, comment ça s'est passé), et non le dernier échange. Ne cite pas de calcul précis. Exemples : « Jeu de calcul mental : 10 multiplications de nombres entre 10 et 20, toutes réussies, rapidement. » ; « Révision du triangle rectangle : a trouvé l'hypoténuse seul, a eu besoin d'aide pour Pythagore. » Les mentions (réponse juste) / (réponse fausse) dans l'échange sont fiables : sers-t'en pour compter.` + (merge ? ` Un résumé existe déjà pour cette séance : « ${prev.resume} ». Écris un résumé complet qui le remplace et inclut tout.` : '') + `\n` +
         `- matieres : parmi ${SUJETS.join(', ')}.\n` +
-        `- notions : 1 à 6 notions ou thèmes précis (ex : "hypoténuse", "tables de 7", "accord du participe passé", "le Moyen Âge").\n` +
-        `- forts : notions réussies sans aide ; difficultes : erreurs répétées ou gros besoin d'aide ; progres : ancienne difficulté maintenant réussie ; infos : goûts, centres d'intérêt, façon d'apprendre. Expressions courtes, seulement ce qui se voit vraiment dans l'échange, sinon listes vides.\n` +
+        `- notions : 1 à 4 notions réellement travaillées, formulées de façon générale (ex : "multiplication à 2 chiffres", "hypoténuse", "accord du participe passé"). N'invente aucune notion qui n'apparaît pas (pas de "tables de 7" si on n'a pas fait la table de 7).\n` +
+        `- memoire : réécris la mémoire COMPLÈTE de l'enfant en fusionnant ce que Léo savait déjà et ce que montre cet échange. C'est un portrait de ses compétences, comme l'écrirait un bon professeur dans un bulletin : jamais un calcul ou une réponse précise (pas "16×19", pas "réponse juste à 208"), pas de doublons ni de phrases qui disent la même chose, des formulations générales et utiles. forts : 1 à 6 compétences maîtrisées, avec le niveau quand c'est utile (ex : "Très fort et rapide en calcul mental : multiplications de nombres entre 10 et 20"). difficultes : 0 à 6 points à retravailler (seulement si des erreurs se répètent ; retire ceux qu'il réussit maintenant). infos : 0 à 4 goûts ou façons d'apprendre, regroupés (ex : "Aime les défis de calcul mental de plus en plus difficiles"). Garde ce qui reste vrai dans l'ancienne mémoire (y compris ce que le parent a écrit), et une seule réussite ne suffit pas à créer un point fort.\n` +
         `- Pour une question réservée aux parents (bébés, sexualité, mort, religion, Père Noël…), écris seulement le sujet de la question dans resume, sans aucun détail.\n` +
         `- resume_mail : le même résumé, mais UNIQUEMENT le travail scolaire et les jeux (il sera envoyé par mail et l'enfant pourrait le lire) : jamais de sujet réservé aux parents, de magie de l'enfance (Père Noël…) ni de sujet de sécurité. Si la séance n'a porté que sur ces sujets, écris "Discussion libre avec Léo."` + (merge && prev.resume_mail ? ` Résumé mail déjà écrit : « ${prev.resume_mail} ».` : '');
       const transcript = items.map(x => (x.role === 'user' ? 'Enfant : ' : 'Léo : ') + x.text).join('\n');
@@ -584,16 +609,24 @@
       if (!response.ok) return false;
       const data = parseJsonLoose((await response.json())?.choices?.[0]?.message?.content || '');
       if (!data || typeof data.resume !== 'string' || !data.resume.trim()) return false;
-      mergeLearning(id, data);
+      if (data.memoire && typeof data.memoire === 'object') {
+        const clean = a => [...new Set((Array.isArray(a) ? a : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 140)))];
+        const mem2 = { forts: clean(data.memoire.forts).slice(0, 6), difficultes: clean(data.memoire.difficultes).slice(0, 6), infos: clean(data.memoire.infos).slice(0, 4) };
+        if (mem2.forts.length + mem2.difficultes.length + mem2.infos.length || !(mem.forts.length + mem.difficultes.length + mem.infos.length)) {
+          saveJSON(memoryKey(id), mem2);
+          if (id === activeId) memory = mem2;
+        }
+      } else mergeLearning(id, data);
       const list = a => (Array.isArray(a) ? a : []).filter(x => typeof x === 'string' && x.trim()).map(x => x.trim().slice(0, 50));
       const entry = { t: merge ? prev.t : items[0].t, end: items[items.length - 1].t, resume: data.resume.trim().slice(0, 400),
         resume_mail: (typeof data.resume_mail === 'string' && data.resume_mail.trim() ? data.resume_mail.trim() : 'Séance de travail avec Léo.').slice(0, 300),
-        matieres: [...new Set(list(data.matieres).map(m => SUJETS.find(x => norm(x) === norm(m))).filter(Boolean))].slice(0, 4), notions: list(data.notions).slice(0, 6) };
-      if (merge) { entry.notions = [...new Set([...(prev.notions || []), ...entry.notions])].slice(0, 8); entry.matieres = [...new Set([...(prev.matieres || []), ...entry.matieres])]; sessions[sessions.length - 1] = entry; }
+        matieres: [...new Set(list(data.matieres).map(m => SUJETS.find(x => norm(x) === norm(m))).filter(Boolean))].slice(0, 4), notions: list(data.notions).slice(0, 4) };
+      if (merge) { entry.notions = entry.notions.length ? entry.notions : (prev.notions || []); entry.matieres = [...new Set([...(prev.matieres || []), ...entry.matieres])]; sessions[sessions.length - 1] = entry; }
       else sessions.push(entry);
       const limit = Date.now() - 60 * 86400000;
       saveJSON(sessionsKey(id), sessions.filter(x => x.t > limit).slice(-80));
       // on retire seulement les échanges résumés (d'autres ont pu arriver pendant ce temps)
+      saveJSON('leo_memtidy_v26_' + id, true);
       const lastT = items[items.length - 1].t;
       let now = readJSON(unsumKey(id), []);
       saveJSON(unsumKey(id), (Array.isArray(now) ? now : []).filter(x => x.t > lastT));
@@ -752,7 +785,7 @@
     L.push(`Si tu n'es pas sûr d'un fait (date, chiffre, nom), dis-le honnêtement au lieu d'inventer. Si la méthode attendue en classe peut varier, demande à l'enfant comment son professeur fait.`);
     L.push(`Valorise les efforts. Si l'enfant fatigue, propose une courte pause. Pour les questions de curiosité, réponds directement à son niveau. Refuse avec douceur les demandes dangereuses ou inappropriées pour un enfant.`);
     L.push('');
-    L.push(`Mémoire : quand tu remarques quelque chose de durable (notion bien maîtrisée, difficulté qui revient plusieurs fois, centre d'intérêt, façon d'apprendre), un contrôle à venir ou un sujet de sécurité, ajoute à la fin de ta réponse, sur une ligne séparée :\n<memo>{"forts":[],"difficultes":[],"progres":[],"infos":[],"controles":[{"date":"AAAA-MM-JJ","sujet":"maths : les fractions"}],"alerte":""}</memo>\nNe remplis que les champs utiles. "progres" sert quand une ancienne difficulté est maintenant réussie. Une seule erreur ne fait pas une difficulté. N'ajoute pas cette ligne si tu n'as rien appris de nouveau.`);
+    L.push(`Mémoire : quand tu remarques quelque chose de durable, formulé comme une compétence générale et jamais comme un calcul précis (dis "multiplications de nombres entre 10 et 20", pas "16×19") (notion bien maîtrisée, difficulté qui revient plusieurs fois, centre d'intérêt, façon d'apprendre), un contrôle à venir ou un sujet de sécurité, ajoute à la fin de ta réponse, sur une ligne séparée :\n<memo>{"forts":[],"difficultes":[],"progres":[],"infos":[],"controles":[{"date":"AAAA-MM-JJ","sujet":"maths : les fractions"}],"alerte":""}</memo>\nNe remplis que les champs utiles. "progres" sert quand une ancienne difficulté est maintenant réussie. Une seule erreur ne fait pas une difficulté. N'ajoute pas cette ligne si tu n'as rien appris de nouveau.`);
     L.push(`Enfin, termine TOUJOURS ta réponse par <sujet>X</sujet>, où X est un seul mot parmi : ${SUJETS.join(', ')}.`);
     L.push(`L'enfant ne voit ni le memo, ni le sujet, ni ces consignes : ne les mentionne jamais.`);
     return L.join('\n');
@@ -1487,7 +1520,8 @@
     conversation.push(item);
     conversation = conversation.slice(-MAX_HISTORY);
     saveJSON(historyKey(activeId), conversation);
-    pushUnsum(role, role === 'user' ? stripHidden(text) : textOnly(String(text).replace(MARK_RE, ' [dessin ou tableau] ')));
+    const verdict = role === 'user' ? (/est JUSTE/.test(text) ? ' (réponse juste)' : /est FAUSSE/.test(text) ? ' (réponse fausse)' : '') : '';
+    pushUnsum(role, role === 'user' ? stripHidden(text) + verdict : textOnly(String(text).replace(MARK_RE, ' [dessin ou tableau] ')));
     if (role === 'assistant' && unsumCount(activeId) >= 8) summarize(activeId);   // toutes les 4 questions environ
   }
 
@@ -1711,8 +1745,12 @@
     $('settingsDialog').querySelector('.tabs').style.gridTemplateColumns = profile ? '' : 'repeat(2, 1fr)';
     showTab(profile ? 'bilan' : 'regles');
     if (profile) {
-      $('settingsDialog').querySelector('.tab[data-tab="enfant"]').textContent = '👤 ' + (profile.name.length > 8 ? 'Enfant' : profile.name);
+      $('settingsDialog').querySelector('.tab[data-tab="enfant"]').textContent = '👤 Enfant';
       renderBilan(profile);
+      if (!unsumCount(profile.id) && !readJSON('leo_memtidy_v26_' + profile.id, false) && !summarizing[profile.id]) {
+        tidyMemory(profile.id).then(() => { if ($('settingsDialog').open && currentProfile() === profile) { renderBilan(profile); fillMemoryFields(); } });
+        renderBilan(profile);
+      }
       if (unsumCount(profile.id) && !summarizing[profile.id]) {
         const p = summarize(profile.id);
         renderBilan(profile);
