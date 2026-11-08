@@ -371,6 +371,18 @@
   .modes button.on { outline: 3px solid #60a5fa; }
   .modechecks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   #modeDialog { max-height: 86vh; overflow-y: auto; }
+
+  /* ---------- Missions (v57) ---------- */
+  #missionDialog { max-height: 88vh; overflow-y: auto; }
+  .mcard { background: #1e293b; border-radius: 14px; padding: 12px; margin: 8px 0; color: #e2e8f0; }
+  .mcard.done { opacity: .7; outline: 2px solid #22c55e; }
+  .mcard .mhead { font-weight: bold; font-size: 17px; }
+  .mcard .mdesc { margin: 4px 0; line-height: 1.35; }
+  .mcard .mmat { font-size: 13px; color: #94a3b8; }
+  .mcard .mrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .mcard .mrow button { padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badges .badge { background: #fef3c7; color: #78350f; border-radius: 999px; padding: 4px 10px; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -385,6 +397,7 @@
 <div id="toolbar">
   <button class="chip" id="newHomework" type="button">📚 Nouveau</button>
   <button class="chip" id="modesBtn" type="button">🧭 Modes</button>
+  <button class="chip" id="missionsBtn" type="button">🏆 Missions</button>
   <button class="chip" id="playBtn" type="button">🎲 Jouer</button>
   <button class="chip" id="dicteeBtn" type="button">✍️ Dictée</button>
   <button class="chip" id="autoReadBtn" type="button">🔊 Voix</button>
@@ -403,6 +416,7 @@
   <div id="robotMenu" role="menu">
     <button type="button" id="mChat" role="menuitem">💬 Écrire à Léo / voir la conversation</button>
     <button type="button" id="mModes" role="menuitem">🧭 Les modes de Léo</button>
+    <button type="button" id="mMissions" role="menuitem">🏆 Missions de la semaine</button>
     <button type="button" id="mPhoto" role="menuitem">📷 Montrer un exercice (photo)</button>
     <button type="button" id="mPlay" role="menuitem">🎲 Jouer</button>
     <button type="button" id="mDictee" role="menuitem">✍️ Faire une dictée</button>
@@ -534,6 +548,16 @@
   </form>
 </dialog>
 
+<dialog id="missionDialog">
+  <form method="dialog" style="gap:12px">
+    <h2 id="missionTitle">🏆 Missions de la semaine</h2>
+    <div id="missionList"></div>
+    <h3 style="margin:6px 0 0">🎖️ Mes badges</h3>
+    <div id="badgeList" class="badges"></div>
+    <div class="dialog-actions"><button class="small-btn grey" value="cancel">Fermer</button></div>
+  </form>
+</dialog>
+
 <dialog id="gameDialog">
   <form method="dialog" style="gap:12px">
     <h2>🎲 À quoi on joue ?</h2>
@@ -566,7 +590,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v56</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v57</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1358,6 +1382,11 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     saveJSON(modeKey(activeId), m ? m.id : "");
     showModeChip();
     if (!announce) return;
+    if (m && m.id === "missions" && !loadMissions(activeId)) {
+      robotStatus("⏳ Je prépare tes missions…");
+      ensureMissions().then(() => setMode("missions", true));
+      return;
+    }
     unlockSpeech();
     R.lastActivity = Date.now();
     input.value = m ? `On passe en mode ${m.name} ${m.e} !` : "On arrête ce mode.";
@@ -1393,6 +1422,200 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     renderModes();
     $("modeDialog").showModal();
   }
+  const missionsKey = (id) => "leo_missions_v57_" + id;
+  const badgesKey = (id) => "leo_badges_v57_" + id;
+  const BADGES = {
+    construire: ["🏗️", "Bâtisseur"],
+    inventer: ["💡", "Inventeur"],
+    enigmes: ["🧩", "Détective"],
+    jeu: ["🎮", "Créateur de jeux"],
+    "3d": ["🧊", "Designer 3D"],
+    vehicule: ["🚗", "Mécanicien"],
+    experience: ["🔬", "Savant"],
+    machine: ["⚙️", "Ingénieur"],
+    anglais: ["🇬🇧", "English star"],
+    art: ["🎨", "Artiste"],
+    nature: ["🌱", "Explorateur"],
+    maths: ["🔢", "Matheux"],
+    lecture: ["📖", "Lecteur"]
+  };
+  const LEVELS = [[6, "🥇", "or"], [3, "🥈", "argent"], [1, "🥉", "bronze"]];
+  function isoWeek(d = /* @__PURE__ */ new Date()) {
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);
+    const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return t.getUTCFullYear() + "-S" + String(Math.ceil(((t - y0) / 864e5 + 1) / 7)).padStart(2, "0");
+  }
+  const MISSION_BANK = {
+    p: [
+      ["construire", "Construis une tour de 15 pièces", "Avec des Lego, des cubes ou des boîtes : elle doit tenir toute seule !", "Lego ou cubes"],
+      ["art", "Dessine ton robot rêvé", "Dessine Léo avec un super pouvoir et raconte-le-moi.", "Papier, crayons"],
+      ["nature", "Chasse aux couleurs", "Trouve dans la maison 5 objets de couleurs différentes et range-les comme un arc-en-ciel.", "Objets de la maison"],
+      ["maths", "Le marchand", "Joue au marchand avec 10 petits objets : compte-les, puis donne-en 3. Combien il en reste ?", "10 petits objets"],
+      ["experience", "Ça flotte ou ça coule ?", "Avec un adulte, mets 5 objets dans une bassine d’eau. Devine avant : flotte ou coule ?", "Bassine d’eau, petits objets"],
+      ["enigmes", "Le trésor caché", "Demande à un adulte de cacher un jouet et retrouve-le avec les indices « chaud » ou « froid ».", "Un jouet"],
+      ["anglais", "Bonjour en anglais", "Dis « Hello » et « Good night » à quelqu’un de ta famille tous les jours.", "Rien"]
+    ],
+    g: [
+      ["vehicule", "Fabrique une voiture", "Avec du carton, des bouchons et des pailles, fabrique une voiture qui roule toute seule sur une pente.", "Carton, 4 bouchons, 2 pailles, scotch"],
+      ["inventer", "Invente un objet utile", "Trouve un petit problème de la maison et invente un objet pour le résoudre. Dessine-le avec ses pièces.", "Papier, crayons"],
+      ["enigmes", "Trois énigmes", "Résous les 3 énigmes que Léo te donnera, sans aide.", "Rien"],
+      ["jeu", "Crée un jeu de société", "Invente un petit jeu avec des règles écrites et fais-y jouer ta famille.", "Papier, dé, pions"],
+      ["experience", "Le volcan", "Avec un adulte : bicarbonate + vinaigre + colorant dans une bouteille. Explique pourquoi ça mousse.", "Bicarbonate, vinaigre, bouteille"],
+      ["machine", "Améliore une machine", "Choisis une machine de la maison (aspirateur, vélo…) et invente 2 améliorations. Dessine-les.", "Papier, crayons"],
+      ["3d", "Ton porte-clés", "Sur Tinkercad, dessine un porte-clés avec ton prénom (5 mm d’épaisseur). Un adulte l’imprimera.", "Tablette ou ordinateur"],
+      ["construire", "Le pont le plus solide", "Construis un pont en papier entre deux livres. Combien de pièces peut-il porter ?", "Feuilles, 2 livres, pièces"]
+    ]
+  };
+  function loadMissions(id) {
+    const m = readJSON(missionsKey(id), null);
+    return m && m.week === isoWeek() && Array.isArray(m.list) ? m : null;
+  }
+  function bankMissions(p) {
+    const pool = (p.age <= 7 ? MISSION_BANK.p : MISSION_BANK.g).filter((x) => x[0] !== "3d" || allowedModes(p).includes("3d")).slice();
+    const out = [];
+    while (out.length < 3 && pool.length) {
+      const x = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      if (!out.some((o) => o.type === x[0])) out.push({ type: x[0], titre: x[1], description: x[2], materiel: x[3] });
+    }
+    return out;
+  }
+  let missionsLoading = null;
+  async function ensureMissions(p) {
+    p = p || currentProfile();
+    if (!p) return null;
+    const have = loadMissions(p.id);
+    if (have) return have;
+    if (missionsLoading) return missionsLoading;
+    missionsLoading = (async () => {
+      const old = readJSON(missionsKey(p.id), null);
+      const before = old && Array.isArray(old.list) ? old.list.map((x) => x.titre).join(" ; ") : "";
+      const mem = loadMemory(p.id), allowed = allowedModes(p);
+      let list = null;
+      try {
+        const sys = `Tu crées les 3 MISSIONS DE LA SEMAINE de ${p.name}, ${p.age} ans (${p.schoolClass}). Ce sont des défis concrets à faire à la maison en 15 à 45 minutes, amusants, sûrs, qui donnent envie et développent l'autonomie et la persévérance. Les 3 missions sont de types DIFFÉRENTS parmi : construire, inventer, enigmes, jeu, 3d, vehicule, experience, machine, anglais, art, nature, maths, lecture. ${allowed.includes("3d") ? "" : "N'utilise pas le type 3d. "}${allowed.includes("english") ? "" : "N'utilise pas le type anglais. "}Adapte vraiment à l'âge (${p.age <= 6 ? "très simple, il ne sait pas encore lire : une seule consigne claire" : "un vrai petit défi"}). Matériel courant de la maison. Si un outil, de la chaleur ou de l'eau est utilisé, écris « avec un adulte ». Goûts de l'enfant : ${mem.infos.join(" ; ") || "inconnus"}. Ne reprends pas : ${before || "rien"}. Réponds UNIQUEMENT par ce JSON : {"missions":[{"type":"construire","titre":"5 mots max","description":"1 ou 2 phrases, tutoiement","materiel":"court"}]}`;
+        const r = await fetchWithTimeout(FUNCTION_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
+          body: JSON.stringify({ messages: [{ role: "system", content: sys }, { role: "user", content: "Crée les missions de cette semaine." }] })
+        }, 45e3);
+        const d = parseJsonLoose((await r.json())?.choices?.[0]?.message?.content || "");
+        if (d && Array.isArray(d.missions)) list = d.missions.filter((x) => x && BADGES[x.type] && x.titre && x.description).slice(0, 3).map((x) => ({ type: x.type, titre: String(x.titre).slice(0, 60), description: String(x.description).slice(0, 240), materiel: String(x.materiel || "").slice(0, 100) }));
+      } catch {
+      }
+      if (!list || list.length < 3) list = bankMissions(p);
+      const m = { week: isoWeek(), list: list.map((x, i) => Object.assign(x, { n: i + 1, done: false })) };
+      saveJSON(missionsKey(p.id), m);
+      return m;
+    })();
+    try {
+      return await missionsLoading;
+    } finally {
+      missionsLoading = null;
+    }
+  }
+  function badgeLevel(n) {
+    return LEVELS.find((l) => n >= l[0]) || null;
+  }
+  function completeMission(n, how) {
+    const p = currentProfile();
+    if (!p) return;
+    const m = loadMissions(p.id);
+    if (!m) return;
+    const x = m.list.find((y) => y.n === Number(n));
+    if (!x || x.done) return;
+    x.done = true;
+    x.doneAt = Date.now();
+    x.how = how || "bouton";
+    saveJSON(missionsKey(p.id), m);
+    const b = readJSON(badgesKey(p.id), { counts: {}, total: 0, weeks: [] });
+    const before = badgeLevel(b.counts[x.type] || 0);
+    b.counts[x.type] = (b.counts[x.type] || 0) + 1;
+    b.total = (b.total || 0) + 1;
+    const allDone = m.list.every((y) => y.done);
+    if (allDone && !b.weeks.includes(m.week)) b.weeks.push(m.week);
+    saveJSON(badgesKey(p.id), b);
+    const after = badgeLevel(b.counts[x.type]), [e, name] = BADGES[x.type];
+    const upgraded = after && (!before || after[0] !== before[0]);
+    R.happyUntil = Date.now() + 6e3;
+    robotEmotion("content");
+    const msg = upgraded ? `Bravo ${p.name} ! Mission réussie : tu gagnes le badge ${name} ${after[2]} !` : `Bravo ${p.name} ! Mission réussie !`;
+    const tail = allDone ? " Et tu as fini toutes les missions de la semaine, champion !" : "";
+    const say = how === "léo" ? (upgraded ? `Tu gagnes le badge ${name} ${after[2]} !` : "") + tail : msg + tail;
+    if (say.trim()) speak(say.trim(), { keep: true });
+    showScore("🏆 " + m.list.filter((y) => y.done).length + "/3 · " + e + " " + name);
+    if ($("missionDialog").open) renderMissions(m);
+  }
+  function renderMissions(m) {
+    const p = currentProfile(), box = $("missionList");
+    box.replaceChildren();
+    if (!m) {
+      box.append(el("p", "note", "⏳ Léo prépare tes missions de la semaine…"));
+      return;
+    }
+    $("missionTitle").textContent = "🏆 Missions de " + p.name + " · " + m.list.filter((x) => x.done).length + "/3";
+    for (const x of m.list) {
+      const [e, name] = BADGES[x.type] || ["⭐", "Mission"];
+      const c = el("div", "mcard" + (x.done ? " done" : ""));
+      c.append(el("div", "mhead", e + " " + x.titre + (x.done ? " ✅" : "")), el("div", "mdesc", x.description));
+      if (x.materiel) c.append(el("div", "mmat", "🧰 " + x.materiel));
+      if (!x.done) {
+        const row = el("div", "mrow");
+        const tell = el("button", null, "🗣️ Raconter à Léo");
+        tell.type = "button";
+        tell.addEventListener("click", () => {
+          $("missionDialog").close();
+          unlockSpeech();
+          input.value = `J'ai fait la mission « ${x.titre} » ! Je te raconte.`;
+          lastInputWasVoice = false;
+          if (!busy) sendMessage();
+        });
+        const photo = el("button", "grey", "📷 Montrer en photo");
+        photo.type = "button";
+        photo.addEventListener("click", () => {
+          $("missionDialog").close();
+          input.value = `Voici ma mission « ${x.titre} » :`;
+          setRobot(false);
+          $("fileInput").click();
+        });
+        const ok = el("button", "grey", "✅ J’ai réussi");
+        ok.type = "button";
+        ok.addEventListener("click", () => {
+          unlockSpeech();
+          completeMission(x.n, "bouton");
+        });
+        row.append(tell, photo, ok);
+        c.append(row);
+      }
+      box.append(c);
+    }
+    const b = readJSON(badgesKey(p.id), { counts: {}, total: 0, weeks: [] });
+    const got = Object.keys(b.counts).filter((k) => b.counts[k] > 0);
+    const bb = $("badgeList");
+    bb.replaceChildren();
+    if (!got.length) bb.append(el("span", "note", "Réussis une mission pour gagner ton premier badge !"));
+    for (const k of got) {
+      const lv = badgeLevel(b.counts[k]);
+      bb.append(el("span", "badge", (lv ? lv[1] : "") + " " + BADGES[k][0] + " " + BADGES[k][1] + " ×" + b.counts[k]));
+    }
+    if (b.weeks.length) bb.append(el("span", "badge", "⭐ Semaines complètes ×" + b.weeks.length));
+  }
+  async function openMissions() {
+    if (!currentProfile()) {
+      openWho();
+      return;
+    }
+    renderMissions(loadMissions(activeId));
+    $("missionDialog").showModal();
+    const m = await ensureMissions();
+    if ($("missionDialog").open) renderMissions(m);
+  }
+  function missionsPrompt(p) {
+    const m = loadMissions(p.id);
+    if (!m) return "";
+    return `Missions de la semaine de ${p.name} : ` + m.list.map((x) => `${x.n}) ${x.titre} — ${x.description}${x.done ? " (RÉUSSIE)" : ""}`).join(" ; ") + `. Si l'enfant raconte ou montre une mission non réussie et qu'il l'a vraiment faite (même imparfaitement, c'est l'effort qui compte), félicite-le et mets <mission>NUMÉRO</mission> à la fin de ta réponse : l'appli lui donne son badge. S'il n'a pas fini, encourage-le et aide-le à continuer (persévérance). En mode Missions, présente-lui ses missions et aide-le à en réaliser une.`;
+  }
   let gameOn = false;
   const GAME_THEMES = ["animaux de la ferme", "animaux de la jungle", "animaux marins", "insectes", "oiseaux", "dinosaures", "espace et planètes", "météo", "saisons", "fruits", "légumes", "desserts", "cuisine", "métiers", "sports", "instruments de musique", "moyens de transport", "objets de la maison", "objets de l’école", "jouets", "vêtements", "corps humain", "couleurs", "formes", "nombres", "lettres et mots", "pays du monde", "monuments", "France", "mers et montagnes", "arbres et plantes", "fleurs", "outils", "inventions", "robots et machines", "électricité", "eau", "feu", "magnétisme", "contes anciens", "chevaliers et châteaux", "pirates", "Égypte ancienne", "préhistoire", "Noël et fêtes", "jeux de société", "émotions", "sons et bruits", "cinq sens", "temps et horloge", "argent et commerce", "sciences de la cuisine", "volcans", "océans", "pôles et banquise", "désert", "forêt", "ville", "campagne", "mathématiques rigolotes", "logique", "mots qui riment", "homophones", "contraires", "devinettes de chiffres", "ombres et lumière", "arc-en-ciel", "nuit et rêves", "bébés animaux", "cris des animaux", "records du monde", "corps des animaux", "maisons des animaux"];
   function gameHint() {
@@ -1417,6 +1640,8 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     if (curMode) L.push(curMode.rule + " Reste dans ce mode tant que l’enfant ne demande pas autre chose ; si sa question n’a rien à voir, réponds-y simplement puis propose de revenir au mode.");
     const forbidden = MODES.filter((x) => !allowedModes(profile).includes(x.id));
     if (forbidden.length) L.push("Modes NON autorisés par les parents pour cet enfant : " + forbidden.map((x) => x.name).join(", ") + ". S’il en demande un, dis gentiment qu’il n’est pas activé et propose autre chose.");
+    const mp = missionsPrompt(profile);
+    if (mp) L.push(mp);
     if (profiles.length > 1) L.push("Enfants de la famille (pour le duel) : " + profiles.map((p) => `${p.name} (${p.age} ans, ${p.schoolClass})`).join(" ; ") + ".");
     L.push(memoryPrompt());
     const asked = readJSON(askedKey(profile.id), []);
@@ -2749,6 +2974,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       setMode("", true);
       return true;
     }
+    if (/^(montre|affiche|ouvre)( moi)? (mes |les )?(missions|badges)\b/.test(t)) {
+      openMissions();
+      return true;
+    }
     const mm = /\bmode (leo )?(prof|professeur|devoirs?|robot\w*|invent\w*|createur|3 ?d|cr[ea]a\w* 3d|scien\w*|english|anglais|missions?)\b/.exec(t);
     if (mm) {
       const k = mm[2], id = /^prof|^devoir/.test(k) ? "prof" : /^robot/.test(k) ? "robotique" : /^invent/.test(k) ? "inventeur" : /3 ?d|createur|crea/.test(k) ? "3d" : /^scien/.test(k) ? "science" : /english|anglais/.test(k) ? "english" : "missions";
@@ -2983,7 +3212,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
       if (early && !early.text) {
-        const m = raw.replace(/<(score|emotion|chrono|redis)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        const m = raw.replace(/<(score|emotion|chrono|redis|mission)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
         if (m) {
           const t = speechSource(cleanText(m[1])).trim();
           if (t.length >= 3) {
@@ -3059,7 +3288,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
-      let score = "", emo = "", claps = false, chrono = "", redis = "";
+      let score = "", emo = "", claps = false, chrono = "", redis = "", missionDone = "";
       const noScore = noMemo.replace(/<score>\s*([^<]{1,60}?)\s*<\/score>/gi, (_, x) => {
         score = x;
         return "";
@@ -3074,6 +3303,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         return "";
       }).replace(/<redis>\s*([^<]{1,80}?)\s*<\/redis>/gi, (_, x) => {
         redis = x;
+        return "";
+      }).replace(/<mission>\s*(\d)\s*<\/mission>/gi, (_, x) => {
+        missionDone = x;
         return "";
       });
       const { text: noSujet, sujet } = extractSujet(noScore);
@@ -3100,6 +3332,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (emo) robotEmotion(emo);
       if (chrono) chronoTag(chrono);
       if (claps) startClapsAfterSpeech();
+      if (missionDone) setTimeout(() => completeMission(missionDone, "léo"), 0);
       R.expectEn = redis ? { target: redis, until: Date.now() + 9e4 } : null;
       stickBottom = false;
       showTop(bubble);
@@ -3157,6 +3390,13 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       return c;
     };
     const since = Date.now() - 7 * 864e5;
+    const mm = loadMissions(profile.id);
+    if (mm) {
+      const cm = card("🏆 Missions de la semaine · " + mm.list.filter((x) => x.done).length + "/3");
+      for (const x of mm.list) cm.append(el("div", null, (x.done ? "✅ " : "⬜ ") + x.titre + (x.done && x.doneAt ? " — " + new Date(x.doneAt).toLocaleDateString("fr-FR", { weekday: "long" }) + (x.how === "léo" ? " (racontée à Léo)" : "") : "")));
+      const bd = readJSON(badgesKey(profile.id), { counts: {}, total: 0, weeks: [] });
+      if (bd.total) cm.append(el("div", "muted", "Badges : " + Object.keys(bd.counts).map((k) => BADGES[k][0] + "×" + bd.counts[k]).join(" ") + " · " + bd.total + " mission" + (bd.total > 1 ? "s" : "") + " réussie" + (bd.total > 1 ? "s" : "") + " en tout"));
+    }
     let st = readJSON(statsKey(profile.id), []);
     if (!Array.isArray(st)) st = [];
     const week = st.filter((e) => e && typeof e.t === "number" && e.t >= since).sort((a, b) => a.t - b.t);
@@ -4495,6 +4735,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (!p) return;
     rob("robotName").textContent = p.name;
     showModeChip();
+    setTimeout(() => ensureMissions(p), 4e3);
     R.lastActivity = Date.now();
     R.questionUntil = Date.now() + 8e3;
     rob("robotHeard").textContent = "";
@@ -4543,6 +4784,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     } else if (!currentProfile()) openWho();
   });
   menuDo("mModes", () => openModes());
+  menuDo("mMissions", () => openMissions());
+  $("missionsBtn").addEventListener("click", () => openMissions());
   rob("robotMode").addEventListener("click", (e) => {
     e.stopPropagation();
     setMode("", true);
