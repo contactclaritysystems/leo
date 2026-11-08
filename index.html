@@ -540,7 +540,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v49</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v50</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -2483,14 +2483,14 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     });
     row.append(play, pause, again, all);
     box.append(info, row);
-    activeDictee = ctrl;
+    box._ctrl = ctrl;
     update();
     return box;
   }
   function voiceCommand(text) {
     const t = String(text).toLowerCase().replace(/[’`]/g, "'").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z' ]/g, " ").replace(/\s+/g, " ").replace(/\b(c|j|d|l) ?' ?/g, "$1'").trim();
     const d = activeDictee;
-    if (d && d.ready() && /^(c'?est parti|on commence|on y va|commence|vas y|je suis pret|pret|oui|ok|go)\b/.test(t)) {
+    if (d && d.ready() && /^(c'?est parti|on commence( la dictee)?|on y va|commence( la dictee)?|je suis pret)\b/.test(t)) {
       d.start();
       return true;
     }
@@ -2515,7 +2515,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         d.readAll();
         return true;
       }
-      return true;
+      return t.split(" ").length <= 3;
     }
     if (d && /(relis (tout|la dictee)|relire la dictee)/.test(t)) {
       d.readAll();
@@ -2842,6 +2842,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         } else speak(full);
       }
       robotOnReply(reply, blocks);
+      if (blocks.some((b) => b.type === "dictee")) {
+        const dEl = (R.on ? rob("robotPanel") : bubble).querySelector(".dictee");
+        activeDictee = dEl && dEl._ctrl ? dEl._ctrl : null;
+      }
       const photoNote = images.length ? images.length > 1 ? " [" + images.length + " photos envoyées, non conservées]" : " [photo envoyée, non conservée]" : "";
       record("user", sentText + photoNote);
       record("assistant", reply, blocks);
