@@ -607,7 +607,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v59</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v60</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1873,7 +1873,7 @@ Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | 
     L.push(`5) Dictée : quand l'enfant veut faire une dictée, mets le texte entre <dictee> et </dictee>, découpé en morceaux de 3 à 7 mots séparés par |, avec toute la ponctuation. L'appli le lit à voix haute SANS l'afficher : n'écris JAMAIS le texte de la dictée ailleurs dans ta réponse. Choisis un texte adapté à son niveau (CP : 1 ou 2 phrases très simples ; CE1-CE2 : 2 à 4 phrases ; CM et collège : 4 à 8 phrases), de préférence sur ses difficultés d'orthographe, ou reprends exactement le texte ou la liste de mots de sa leçon s'il te le donne. Dis-lui en une phrase de prendre son cahier et de dire « c'est parti » quand il est prêt : tu liras chaque morceau normalement puis lentement mot par mot, et il peut te dire « attends », « répète » ou « continue ». À la fin il te montre sa dictée en photo ou l'écrit. Quand il l'envoie, compare mot à mot avec le texte original (il est dans l'historique), donne le nombre de fautes, écris le texte correct, puis explique les 2 ou 3 fautes les plus importantes avec la règle, et félicite ce qui est réussi.`);
     L.push("");
     L.push(`Attendre la réponse : quand tu poses une question (calcul, devinette, quiz, n'importe quoi), c'est à l'enfant de trouver. Ne réponds jamais à sa place, ne dis jamais « bravo », « tu as réussi » ou « c'est juste » tant qu'il n'a pas clairement donné SA réponse, et ne félicite que si elle est juste. S'il met du temps, l'appli te préviendra avec une [RELANCE AUTOMATIQUE] : alors aide-le seulement avec une petite question-indice.`);
-    L.push(`Calculs : avant de dire qu'une réponse est juste ou fausse, refais toujours le calcul. Si un message de l'enfant contient [Vérification automatique : ...], c'est l'appli qui a fait le calcul : si le message est bien la réponse à ce calcul, fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de cette mention et ne la recopie jamais. Si la réponse est juste, commence par le dire clairement (par exemple "Bravo, c'est juste !") et n'utilise jamais "presque" ou "pas tout à fait". Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
+    L.push(`Calculs : avant de dire qu'une réponse est juste ou fausse, refais toujours le calcul. Si un message de l'enfant contient [Vérification automatique : ...], c'est l'appli qui a fait le calcul : si le message est bien la réponse à ce calcul, fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de cette mention et ne la recopie jamais. Si la réponse est juste, commence par le dire clairement (par exemple "Bravo, c'est juste !") et n'utilise jamais "presque" ou "pas tout à fait". Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Quand tu proposes une étape (décomposer, calcul plus facile), rappelle toujours la question de départ (« pour trouver 63 moins 27… ») pour que l'enfant ne croie pas que le calcul a changé ; et s'il donne directement le bon résultat de la question de départ, c'est JUSTE : bravo, jamais « presque ». Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
     L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : ils viennent d'une transcription automatique qui peut se tromper (mot mal entendu, mot anglais à la place du mot français comme « banana » pour « banane », mot coupé, homonyme). Si une réponse ressemble à la bonne par le son ou par le sens, considère que c'est la machine qui a mal entendu : compte-la juste. Si tu ne peux vraiment pas deviner, dis gentiment « je ne suis pas sûr d'avoir bien entendu, tu peux répéter ? », sans jamais compter faux à cause du micro. Si un message [dicté à la voix] ne ressemble pas à une réponse (bruit, mots sans rapport, morceau de ta propre question), ne fais JAMAIS comme s'il avait répondu et ne dis pas « bravo » : redis simplement ta question, gentiment. Si l'enfant réfléchit à voix haute (il répète la question, fait une étape de calcul comme « 45 moins 10 ça fait 35 », dit « attends », « je cherche ») : ce n'est PAS sa réponse finale, ne donne aucun verdict (ni bravo, ni faux) ; dis seulement une toute petite phrase comme « Oui, continue ! » ou « Je t'écoute, prends ton temps. » et laisse-le finir. Ne parle jamais de cette mention.`);
     L.push(`Orthographe : quand l'enfant ÉCRIT lui-même (jamais pour un message [dicté à la voix], car les fautes viennent alors de la machine), aide-le à mieux écrire sans l'embêter. Réponds d'abord à sa question normalement. Puis, s'il y a une faute, ajoute à la fin UNE seule petite remarque, en une phrase courte et sympa, sur la faute la plus utile à corriger, avec la règle ou l'astuce en quelques mots (ex : "Petite astuce : on écrit « beaucoup » avec deux c 😉"). Jamais de liste de fautes, jamais de reproche. Ignore les fautes de frappe évidentes, l'absence de majuscule ou de ponctuation et le langage SMS léger. En maternelle et CP, ne corrige presque rien ; au collège, vise les accords, les homophones (a/à, et/est, ou/où…) et la conjugaison. Pas de remarque si tu en as déjà fait une dans tes deux réponses précédentes, sauf faute vraiment importante. Si la même faute revient souvent, note-la dans la mémoire.`);
     L.push("");
@@ -2029,12 +2029,37 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const ok = Math.abs(given - calc.value) < 1e-3;
     return ok ? ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est JUSTE.]` : ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est FAUSSE : donne un indice sans donner le résultat tout de suite.]`;
   }
+  function recentLeoTexts() {
+    const out = [];
+    for (let i = conversation.length - 1; i >= 0 && out.length < 5; i--) {
+      const m = conversation[i];
+      if (m.role !== "assistant") continue;
+      const t = textOnly(m.text);
+      out.push(t);
+      if (out.length > 1 && /^\W*(bravo|c['’]est juste|super|g[ée]nial|exact|parfait|bien jou[ée]|oui ?!)/i.test(t)) break;
+    }
+    return out;
+  }
+  function verifyRecent(childText) {
+    const texts = recentLeoTexts();
+    if (!texts.length) return "";
+    const first = verifyAnswer(texts[0], childText);
+    if (/JUSTE/.test(first)) return first;
+    for (const t of texts.slice(1)) {
+      const v = verifyAnswer(t, childText);
+      if (/JUSTE/.test(v)) {
+        const calc = findAskedCalc(t), shown = calc.seg.replace(/[xX*]/g, "×").replace(/\s+/g, " ");
+        return ` [Vérification automatique : la réponse de l'enfant est le bon résultat FINAL de la question de départ ${shown} = ${fmt(calc.value)} : c'est JUSTE. Il a trouvé directement, sans passer par ton étape : dis-lui clairement « Bravo, c'est juste ! », jamais « presque », et passe à la suite.]`;
+      }
+    }
+    return first;
+  }
   function verifyThinking(leoText, childText) {
     const c = normalizeMath(childText);
     if (!HAS_OP_RE.test(c)) return "";
     const m = /(?:,|ça fait|ca fait|donc|=|égale?|font|fait)\s*(\d+(?:[.,]\d+)?)\s*[.!?…]*$/i.exec(c);
     if (!m) return "";
-    const v = verifyAnswer(leoText, m[1]);
+    const v = verifyRecent(m[1]);
     return v ? ` [Réflexion à voix haute : sa réponse finale est ${m[1]}.]` + v : "";
   }
   function stripHidden(t) {
@@ -3447,7 +3472,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const userText = text || (images.length > 1 ? "Voici les photos de mon exercice." : "Voici une photo de mon exercice.");
     const lastLeo = [...conversation].reverse().find((m) => m.role === "assistant");
     const leoQ = lastLeo ? textOnly(lastLeo.text) : "";
-    const check = images.length || hidden ? "" : verifyAnswer(leoQ, userText) || verifyThinking(leoQ, userText);
+    const check = images.length || hidden ? "" : verifyRecent(userText) || verifyThinking(leoQ, userText);
     const inGame = !hidden && (gameOn || /\bjou|devinette|qui suis-je|mot myst|quiz|vrai ou faux|intrus|d[ée]fi calcul/i.test(userText)) && !/jacques|juste nombre|chrono|histoire|claps|syllabe|émotion|emotion/i.test(userText + " " + (lastLeo ? lastLeo.text : ""));
     const sentText = userText + check + (viaVoice ? " [dicté à la voix]" : "") + (inGame ? gameHint() : "");
     if (!hidden) {
@@ -5934,7 +5959,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     w.hints++;
     const secs = Math.round((now - w.since) / 1e3);
     R.relancing = true;
-    sendMessage({ hidden: `[RELANCE AUTOMATIQUE de l'appli — ce n'est PAS un message de l'enfant. L'enfant réfléchit depuis ${secs} secondes et n'a encore rien répondu. Ne dis surtout pas « bravo », ne dis pas « c'est juste » ou « c'est faux », ne fais pas comme s'il avait répondu, et ne donne pas la réponse. Dis une toute petite phrase rassurante (par exemple « Prends ton temps ! »), puis pose UNE petite question-indice en rapport direct avec ta dernière question, pour l'aider à avancer tout seul (pour un calcul : une étape plus facile ; pour une devinette : un nouvel indice ; pour une question de cours : une piste). Si ta question n'avait pas de bonne réponse (un choix, une envie), redemande-la simplement en proposant deux choix. Deux phrases au maximum, et termine par ta question. N'ajoute pas de balise <score>.]` }).finally(() => {
+    sendMessage({ hidden: `[RELANCE AUTOMATIQUE de l'appli — ce n'est PAS un message de l'enfant. L'enfant réfléchit depuis ${secs} secondes et n'a encore rien répondu. Ne dis surtout pas « bravo », ne dis pas « c'est juste » ou « c'est faux », ne fais pas comme s'il avait répondu, et ne donne pas la réponse. Dis une toute petite phrase rassurante (par exemple « Prends ton temps ! »), puis pose UNE petite question-indice en rapport direct avec ta dernière question, pour l'aider à avancer tout seul, en rappelant bien que c'est pour trouver la MÊME question de départ (pour un calcul : « Pour trouver 63 moins 27, commence par 63 moins 20 : ça fait combien ? » — jamais un nouveau calcul sans lien ; pour une devinette : un nouvel indice ; pour une question de cours : une piste). Si ta question n'avait pas de bonne réponse (un choix, une envie), redemande-la simplement en proposant deux choix. Deux phrases au maximum, et termine par ta question. N'ajoute pas de balise <score>.]` }).finally(() => {
       R.relancing = false;
     });
   }, 1e3);
