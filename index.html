@@ -355,6 +355,22 @@
   #robot::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1;
     background: linear-gradient(125deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.06) 28%, rgba(255,255,255,0) 42%); }
   #robot::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1; box-shadow: inset 0 0 140px rgba(5, 15, 60, .55); }
+
+  /* menu des jeux (v54) */
+  #gameList .gamehead { grid-column: 1 / -1; font-weight: bold; color: #64748b; font-size: 14px; margin: 8px 0 0; }
+  #gameDialog { max-height: 86vh; overflow-y: auto; }
+
+  /* ---------- Modes (v55) ---------- */
+  #robot .rtop .rmid { display: flex; align-items: center; gap: 8px; }
+  #robot .rtop .modechip { width: auto !important; padding: 0 12px; font-size: 15px; color: #fff; background: #ffffff33 !important; border-radius: 999px !important; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modes button { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 12px; border-radius: 14px; background: #1e293b; color: #e2e8f0; gap: 2px; }
+  .modes button .me { font-size: 30px; }
+  .modes button b { font-size: 17px; }
+  .modes button span:last-child { font-size: 13px; color: #94a3b8; }
+  .modes button.on { outline: 3px solid #60a5fa; }
+  .modechecks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #modeDialog { max-height: 86vh; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -368,6 +384,7 @@
 </header>
 <div id="toolbar">
   <button class="chip" id="newHomework" type="button">📚 Nouveau</button>
+  <button class="chip" id="modesBtn" type="button">🧭 Modes</button>
   <button class="chip" id="playBtn" type="button">🎲 Jouer</button>
   <button class="chip" id="dicteeBtn" type="button">✍️ Dictée</button>
   <button class="chip" id="autoReadBtn" type="button">🔊 Voix</button>
@@ -379,12 +396,13 @@
 <div id="robot" aria-label="Léo robot">
   <div class="rtop">
     <button type="button" id="robotMenuBtn" aria-label="Menu">☰</button>
-    <button type="button" id="robotWho" class="who" aria-label="Changer d'enfant"><span id="robotName">Qui es-tu ?</span> ▾</button>
+    <div class="rmid"><button type="button" id="robotWho" class="who" aria-label="Changer d'enfant"><span id="robotName">Qui es-tu ?</span> ▾</button><button type="button" id="robotMode" class="modechip" style="display:none" aria-label="Quitter le mode"></button></div>
     <div class="rright">
     </div>
   </div>
   <div id="robotMenu" role="menu">
     <button type="button" id="mChat" role="menuitem">💬 Écrire à Léo / voir la conversation</button>
+    <button type="button" id="mModes" role="menuitem">🧭 Les modes de Léo</button>
     <button type="button" id="mPhoto" role="menuitem">📷 Montrer un exercice (photo)</button>
     <button type="button" id="mPlay" role="menuitem">🎲 Jouer</button>
     <button type="button" id="mDictee" role="menuitem">✍️ Faire une dictée</button>
@@ -508,6 +526,14 @@
   </form>
 </dialog>
 
+<dialog id="modeDialog">
+  <form method="dialog" style="gap:12px">
+    <h2>🧭 Les modes de Léo</h2>
+    <div class="modes" id="modeList"></div>
+    <div class="dialog-actions"><button type="button" class="small-btn grey" id="modeOff">Quitter le mode</button><button class="small-btn grey" value="cancel">Fermer</button></div>
+  </form>
+</dialog>
+
 <dialog id="gameDialog">
   <form method="dialog" style="gap:12px">
     <h2>🎲 À quoi on joue ?</h2>
@@ -540,7 +566,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v53</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v55</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -576,6 +602,16 @@
           <label>💡 Goûts et façon d'apprendre <textarea id="memInfos"></textarea></label>
           <label>🗣️ Consignes de l'enfant (façon de lui parler, toujours respectées) <textarea id="memConsignes" placeholder="ex : Réponses très courtes&#10;M'appeler Nyny"></textarea></label>
           <button type="button" id="clearMemory" class="small-btn grey">Vider la mémoire</button>
+        </div>
+        <div class="card">
+          <h3>🧭 Modes autorisés</h3>
+          <p class="note">Coche les modes que cet enfant peut utiliser. Léo refusera gentiment les autres.</p>
+          <div id="allowedModes" class="modechecks"></div>
+        </div>
+        <div class="card">
+          <h3>🗑️ Historique</h3>
+          <p class="note">Efface les conversations, les résumés de séances, les questions de jeu et les records de cet enfant. Ce que Léo a retenu reste, sauf si tu vides aussi la mémoire.</p>
+          <button type="button" id="clearHistory" class="small-btn grey">🗑️ Effacer l’historique</button>
         </div>
         <button type="button" id="deleteProfile" class="small-btn danger">Supprimer ce profil</button>
       </section>
@@ -1245,6 +1281,118 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     return "Niveau lycée : vocabulaire disciplinaire précis, raisonnement rigoureux, méthodes du bac. Ton d'égal à égal, pas enfantin.";
   }
   const askedKey = (id) => "leo_asked_v53_" + id;
+  const MODES = [
+    {
+      id: "prof",
+      e: "📚",
+      name: "Léo Prof",
+      desc: "Devoirs et leçons",
+      rule: `MODE LÉO PROF (aide aux devoirs et leçons : français, maths, histoire, géographie, sciences, anglais). Méthode à suivre : 1) découvre ce que l'enfant sait déjà et où il bloque ; 2) pose UNE question pour le faire réfléchir ; 3) donne un indice, pas la réponse ; 4) laisse-lui le temps de chercher ; 5) si erreur, explique-la avec un autre exemple ; 6) vérifie qu'il a compris avec une petite question de contrôle. Commence par demander sur quoi il travaille (ou s'il a une photo de son exercice).`
+    },
+    {
+      id: "robotique",
+      e: "🤖",
+      name: "Robotique",
+      desc: "Comment marchent les robots",
+      rule: `MODE ROBOTIQUE : fais découvrir comment marchent les robots (moteurs, roues, engrenages, capteurs, électricité de base, programmation, détection d'obstacles, robots autonomes, intelligence artificielle embarquée), avec des exemples du quotidien et des petits schémas (<dessin>). Propose des mini-défis de réflexion (« Comment un robot aspirateur sait-il qu'il y a un mur ? »). Pour fabriquer un vrai robot : matériel simple et bon marché (micro:bit, moteurs, piles), toujours avec un adulte, jamais le 230 V du secteur, rien de dangereux.`
+    },
+    {
+      id: "inventeur",
+      e: "💡",
+      name: "Inventeur",
+      desc: "Inventer et construire une idée",
+      rule: `MODE LÉO INVENTEUR : l'enfant a une idée (ou tu l'aides à en trouver une). Guide-le en 6 étapes, une à la fois, en lui laissant faire SES choix : 1) le but de l'invention ; 2) imaginer des solutions (pose des questions, ne donne pas la réponse) ; 3) la dessiner ou la décrire (tu peux faire un croquis <dessin>) ; 4) la liste du matériel (simple, récupération, imprimante 3D) ; 5) construire un prototype avec un adulte ; 6) tester et améliorer. Dis à quelle étape on est. Encourage la créativité, valorise les idées même farfelues.`
+    },
+    {
+      id: "3d",
+      e: "🧊",
+      name: "Créateur 3D",
+      desc: "Imaginer des objets à imprimer",
+      rule: `MODE CRÉATEUR 3D : initiation à la conception 3D : formes de base (cube, cylindre, sphère), dimensions en millimètres, assembler et creuser des formes, épaisseur minimale (au moins 2 mm), tolérance pour que deux pièces s'emboîtent (environ 0,3 mm), objets utiles et imprimables (porte-crayon, porte-clés, support). Guide pas à pas sur Tinkercad (gratuit, fait pour les enfants) : une étape à la fois, attends qu'il ait fait l'étape. L'impression se fait toujours avec un adulte (la buse est très chaude).`
+    },
+    {
+      id: "science",
+      e: "🔬",
+      name: "Scientifique",
+      desc: "Expériences et découvertes",
+      rule: `MODE LÉO SCIENTIFIQUE : découverte du monde (gravité, lumière, aimants, eau, électricité simple avec des piles seulement, espace, nature, corps humain, machines). Méthode scientifique : une question, l'enfant fait une hypothèse (« d'après toi, que va-t-il se passer ? »), une expérience SANS DANGER avec du matériel de la maison (jamais de feu, de produits ménagers, de prise électrique, d'objets coupants ; demande un adulte si besoin), l'observation, puis la conclusion. Adapte à l'âge.`
+    },
+    {
+      id: "english",
+      e: "🇬🇧",
+      name: "Léo English",
+      desc: "Parler anglais en jouant",
+      rule: `MODE LÉO ENGLISH : apprentissage de l'anglais adapté à l'âge (très simple pour les petits : couleurs, animaux, nombres, bonjour…). Vocabulaire, petites conversations, jeux de questions-réponses, histoires courtes, petites missions (« dis bonjour en anglais à ta maman »). Mets TOUT mot ou phrase en anglais entre <en> et </en> pour l'accent anglais. Alterne naturellement : la consigne en français, le mot en anglais, et fais-le répéter. Félicite chaque essai. Ne prétends pas juger finement sa prononciation : tu reçois seulement le texte de ce qui a été entendu.`
+    },
+    {
+      id: "missions",
+      e: "🏆",
+      name: "Missions",
+      desc: "Des défis à réaliser",
+      rule: `MODE LÉO MISSIONS : propose des défis concrets à réaliser dans la vraie vie, adaptés à l'âge (construire une tour avec 15 pièces, inventer un objet utile, résoudre 3 énigmes, concevoir un petit jeu, créer une pièce en 3D, fabriquer un véhicule simple, réaliser une expérience, améliorer une machine…). Explique la mission clairement, donne le matériel, propose de te raconter ou de te montrer en photo le résultat, félicite l'effort et la persévérance plus que le résultat. Une mission à la fois.`
+    }
+  ];
+  const modeKey = (id) => "leo_mode_v55_" + id;
+  function allowedModes(p) {
+    p = p || currentProfile();
+    return p && Array.isArray(p.modes) ? p.modes : MODES.map((m) => m.id);
+  }
+  function currentMode() {
+    if (!activeId) return null;
+    const id = readJSON(modeKey(activeId), "");
+    const m = MODES.find((x) => x.id === id);
+    return m && allowedModes().includes(m.id) ? m : null;
+  }
+  function setMode(id, announce) {
+    if (!currentProfile()) {
+      openWho();
+      return;
+    }
+    const m = MODES.find((x) => x.id === id);
+    if (m && !allowedModes().includes(m.id)) {
+      const t = "Le mode " + m.name + " n’est pas activé. Demande à papa ou maman !";
+      robotStatus(t);
+      speak(t);
+      return;
+    }
+    saveJSON(modeKey(activeId), m ? m.id : "");
+    showModeChip();
+    if (!announce) return;
+    unlockSpeech();
+    R.lastActivity = Date.now();
+    input.value = m ? `On passe en mode ${m.name} ${m.e} !` : "On arrête ce mode.";
+    lastInputWasVoice = false;
+    if (!busy) sendMessage();
+  }
+  function showModeChip() {
+    const m = currentMode(), c = document.getElementById("robotMode");
+    if (c) {
+      c.textContent = m ? m.e + " " + m.name + " ✕" : "";
+      c.style.display = m ? "" : "none";
+    }
+  }
+  function renderModes() {
+    const list = $("modeList");
+    list.replaceChildren();
+    const allowed = allowedModes(), cur = currentMode();
+    for (const m of MODES) {
+      if (!allowed.includes(m.id)) continue;
+      const b = el("button", cur && cur.id === m.id ? "on" : "");
+      b.type = "button";
+      b.append(el("span", "me", m.e), el("b", null, m.name), el("span", null, m.desc));
+      b.addEventListener("click", () => {
+        $("modeDialog").close();
+        setMode(m.id, true);
+      });
+      list.append(b);
+    }
+    if (!list.children.length) list.append(el("p", "note", "Aucun mode n’est activé pour cet enfant (espace parent › Enfant)."));
+    $("modeOff").style.display = cur ? "" : "none";
+  }
+  function openModes() {
+    renderModes();
+    $("modeDialog").showModal();
+  }
   let gameOn = false;
   const GAME_THEMES = ["animaux de la ferme", "animaux de la jungle", "animaux marins", "insectes", "oiseaux", "dinosaures", "espace et planètes", "météo", "saisons", "fruits", "légumes", "desserts", "cuisine", "métiers", "sports", "instruments de musique", "moyens de transport", "objets de la maison", "objets de l’école", "jouets", "vêtements", "corps humain", "couleurs", "formes", "nombres", "lettres et mots", "pays du monde", "monuments", "France", "mers et montagnes", "arbres et plantes", "fleurs", "outils", "inventions", "robots et machines", "électricité", "eau", "feu", "magnétisme", "contes anciens", "chevaliers et châteaux", "pirates", "Égypte ancienne", "préhistoire", "Noël et fêtes", "jeux de société", "émotions", "sons et bruits", "cinq sens", "temps et horloge", "argent et commerce", "sciences de la cuisine", "volcans", "océans", "pôles et banquise", "désert", "forêt", "ville", "campagne", "mathématiques rigolotes", "logique", "mots qui riment", "homophones", "contraires", "devinettes de chiffres", "ombres et lumière", "arc-en-ciel", "nuit et rêves", "bébés animaux", "cris des animaux", "records du monde", "corps des animaux", "maisons des animaux"];
   function gameHint() {
@@ -1265,6 +1413,11 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     L.push(`Tu es une intelligence artificielle, pas un humain : si l'enfant te le demande, dis-le simplement et gentiment. Tu es un compagnon d'apprentissage, pas un remplaçant de ses amis ou de sa famille : si l'enfant dit que tu es son seul ami ou qu'il préfère te parler qu'aux autres, réponds avec douceur et encourage-le à jouer et parler avec ses amis, sa famille et ses enseignants.`);
     L.push(`Adapte toujours tes explications à l'âge réel de l'enfant : un enfant en avance ou en difficulté doit être pris tel qu'il est.`);
     L.push("");
+    const curMode = MODES.find((x) => x.id === readJSON(modeKey(profile.id), "") && allowedModes(profile).includes(x.id));
+    if (curMode) L.push(curMode.rule + " Reste dans ce mode tant que l’enfant ne demande pas autre chose ; si sa question n’a rien à voir, réponds-y simplement puis propose de revenir au mode.");
+    const forbidden = MODES.filter((x) => !allowedModes(profile).includes(x.id));
+    if (forbidden.length) L.push("Modes NON autorisés par les parents pour cet enfant : " + forbidden.map((x) => x.name).join(", ") + ". S’il en demande un, dis gentiment qu’il n’est pas activé et propose autre chose.");
+    if (profiles.length > 1) L.push("Enfants de la famille (pour le duel) : " + profiles.map((p) => `${p.name} (${p.age} ans, ${p.schoolClass})`).join(" ; ") + ".");
     L.push(memoryPrompt());
     const asked = readJSON(askedKey(profile.id), []);
     if (Array.isArray(asked) && asked.length) L.push(`Questions de jeu DÉJÀ posées à cet enfant (ne les repose JAMAIS, même formulées autrement, même la réponse : trouve toujours une nouvelle idée) :
@@ -1328,6 +1481,19 @@ Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | 
     L.push(`En calcul posé, respecte la présentation scolaire française et guide chaque étape (avec l'outil <pose>).`);
     L.push(`Photos : l'enfant peut envoyer jusqu'à 3 photos à la fois (page entière, exercice sur deux pages). Indique ce que tu parviens à lire, reconnais tes incertitudes et ne devine jamais un énoncé illisible. Pour un travail écrit à la main ou une construction géométrique, dis honnêtement si la photo ne te permet pas de juger précisément.`);
     L.push(`JEUX : un jeu doit être un VRAI jeu, amusant et différent d'un exercice. Jeux possibles : devinettes, charades, « Qui suis-je ? » (animal, métier, objet, personnage historique, pays…), mot mystère (l'enfant devine un mot avec des indices ou lettre par lettre, façon pendu), vrai ou faux, quiz de culture générale (animaux, sciences, géographie, histoire, espace, sport…), l'intrus, anagrammes, mots croisés simples, défi calcul mental, petite histoire à inventer ensemble. Si l'enfant demande un jeu sans dire lequel, propose 3 jeux DIFFÉRENTS en une phrase et laisse-le choisir (jamais l'activité qu'on vient de faire). Si l'enfant dit « stop », « j'en ai marre », « autre chose », arrête tout de suite et ne revient pas sur la même activité. Déroulement : une partie = 5 questions. Ne DIS JAMAIS la progression ni le score pendant la partie (pas de « question 2 sur 5 », pas de « 1 point ») : pose directement la question. Mets seulement, tout à la fin de ta réponse, la balise <score>2/5 · ⭐ 1</score> : elle s'affiche à l'écran sans être lue. Une seule question à la fois, attends sa réponse, réagis avec enthousiasme, et s'il se trompe donne la bonne réponse avec une petite explication amusante avant la question suivante (en jeu, on n'insiste pas avec des indices sauf s'il demande un indice). À la fin de la partie seulement : dis son score en une courte phrase, un bravo, et propose de rejouer ou de changer de jeu. Varie les sujets d'une question à l'autre et adapte la difficulté à son niveau (plus facile s'il se trompe, plus dur s'il réussit tout). Tu peux glisser de temps en temps une question sur ses points à travailler ou ses goûts, mais le jeu doit rester varié et amusant. Les devoirs passent avant le jeu : s'il dit avoir des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
+    L.push(`JEUX SPÉCIAUX DE LÉO (tu as un visage, une voix, un micro et un écran) :
+- « Devine mon émotion » (petits) : commence ta réponse par <emotion>NOM</emotion> avec NOM parmi content, triste, surpris, fache, fatigue, peur, amoureux : ton visage prend cette expression. Dis seulement « Regarde bien mon visage : qu'est-ce que je ressens ? » sans donner l'émotion. Si l'enfant trouve, bravo et une phrase sur quand on ressent ça. Une fois sur deux, inverse : demande-lui de faire une tête (« Fais-moi une tête de quelqu'un de surpris ! ») puis félicite-le (tu ne peux pas le voir, ne prétends pas le voir : dis « Je suis sûr que tu fais une super tête ! »).
+- « Combien il y en a ? » (petits) : dessine avec <dessin> de 1 à 10 objets identiques et bien séparés (pommes, étoiles, poissons…), sans aucun chiffre ni mot dans le dessin, et demande combien il en voit. Monte doucement : compter, puis comparer deux groupes (« il y en a plus à gauche ou à droite ? »), puis ajouter (2 pommes + 1 pomme).
+- « Tape les syllabes » (petits) : dis un mot (2 à 4 syllabes, adapté à son âge), demande-lui de taper dans ses mains une fois par syllabe, et mets <claps/> à la fin de ta réponse : le micro compte les claps et te les envoie ([Claps comptés par le micro : N]). Compare avec le bon nombre de syllabes ; si c'est faux, redis le mot en séparant les syllabes (é-lé-phant) et fais-le recommencer. Tolère ±1 au début pour les tout-petits (un clap peut être mal entendu).
+- « Le son du début » (petits) : donne un son (ma, pa, ch, ou…) et demande un mot qui commence par ce son ; accepte tout mot juste ; donne toi aussi un exemple ensuite.
+- « Les cris des animaux » (petits) : décris un animal en 2 indices simples et demande-lui de faire son cri, ou l'inverse : il fait un cri et tu devines (le texte entendu peut être « meuh », « miaou »…).
+- « L'histoire dont tu es le héros » (petits) : raconte une petite histoire en 2-3 phrases et propose UN choix entre deux possibilités à chaque étape ; 5 à 6 étapes puis une fin joyeuse.
+- « Jacques a dit » (petits) : donne un ordre simple et rigolo à faire avec le corps ; parfois sans « Jacques a dit » pour le piéger ; demande-lui s'il l'a fait. Rien de dangereux, rien qui nécessite de bouger loin.
+- « Le juste nombre » (grands) : choisis un nombre secret (1-100, ou 1-1000 pour les plus grands) et écris-le à chaque réponse dans <secret>NOMBRE</secret> (invisible pour l'enfant, c'est ta mémoire) ; réponds « plus grand » ou « plus petit » ; compte les essais ; à la fin, félicite et donne le nombre d'essais.
+- « Léo dessine, tu devines » (grands et petits) : fais un dessin simple et reconnaissable entre <dessinlent> et </dessinlent> (même format SVG que <dessin>, 5 à 15 formes, AUCUN texte) : il apparaît trait par trait ; dis seulement « Je dessine… devine ce que c'est ! ». Varie les objets.
+- « L'histoire à deux » (grands) : tu écris une phrase, l'enfant la suivante, à tour de rôle ; garde le fil ; après 8 à 10 phrases, relis toute l'histoire avec un titre.
+- « Chrono calcul » (grands) : 10 calculs mentaux de son niveau, un à la fois. Mets <chrono>start</chrono> avec le 1er calcul et <chrono>stop</chrono> après sa 10e réponse : l'appli mesure le temps et garde son record. Pas de score pendant le chrono, juste le calcul suivant.
+- « Le duel des frères » (famille) : deux enfants (voir la liste de la famille) jouent chacun leur tour ; dis à chaque question à qui c'est (« À toi, Giovann ! ») et adapte la question à l'âge de CE joueur (facile pour le petit, plus dure pour le grand) pour que chacun ait autant de chances ; 5 questions chacun ; score dans <score>Prénom1 2 · Prénom2 3</score> ; à la fin, félicite les deux, jamais de moquerie. S'il n'y a qu'un enfant dans la famille, propose de jouer contre papa ou maman.`);
     L.push("");
     L.push(`Matières : tu es un vrai professeur dans TOUTES les matières, selon les programmes officiels et le niveau de l'enfant.`);
     L.push(`- Maths : numération, calcul mental et posé, tables, fractions, décimaux, proportionnalité, pourcentages, grandeurs et conversions (tableau de conversion), problèmes (lire l'énoncé, repérer la question, choisir l'opération, phrase réponse avec l'unité), géométrie (figures, constructions à la règle, à l'équerre et au compas décrites étape par étape avec un dessin, angles, symétries, périmètres, aires, volumes). Au collège : nombres relatifs, puissances, calcul littéral, équations, Pythagore, Thalès, trigonométrie, fonctions, statistiques, probabilités, Scratch.`);
@@ -1464,7 +1630,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return ok ? ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est JUSTE.]` : ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est FAUSSE : donne un indice sans donner le résultat tout de suite.]`;
   }
   function stripHidden(t) {
-    return String(t).replace(/\s*\[(dicté à la voix|Vérification automatique[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
+    return String(t).replace(/\s*\[(dicté à la voix|Vérification automatique[^\]]*|Claps comptés[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
   }
   async function fetchWithTimeout(url, options, ms) {
     if (!window.AbortController) {
@@ -1563,6 +1729,31 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     fitSvg(root);
     return new XMLSerializer().serializeToString(root);
   }
+  function animateSvg(svg) {
+    try {
+      const doc = new DOMParser().parseFromString(svg, "image/svg+xml"), root = doc.documentElement;
+      for (const t of [...root.querySelectorAll("text, title, desc")]) t.remove();
+      const shapes = [...root.querySelectorAll("path, line, polyline, polygon, circle, ellipse, rect")];
+      const vb = (root.getAttribute("viewBox") || "0 0 320 240").split(/[\s,]+/).map(Number);
+      let i = 0;
+      for (const el2 of shapes) {
+        const w = parseFloat(el2.getAttribute("width")) || 0, h = parseFloat(el2.getAttribute("height")) || 0;
+        if (el2.nodeName === "rect" && w >= vb[2] * 0.9 && h >= vb[3] * 0.9) continue;
+        if (!el2.getAttribute("stroke") || el2.getAttribute("stroke") === "none") {
+          el2.setAttribute("stroke", "#1f2937");
+          el2.setAttribute("stroke-width", el2.getAttribute("stroke-width") || "3");
+        }
+        const d = (i++ * 1.1).toFixed(1);
+        el2.setAttribute("style", (el2.getAttribute("style") || "") + `;stroke-dasharray:2400;stroke-dashoffset:2400;fill-opacity:0;animation:leoDraw 1.6s ease-out ${d}s forwards, leoFill .7s ease-out ${(+d + 1.2).toFixed(1)}s forwards`);
+      }
+      const st = doc.createElementNS("http://www.w3.org/2000/svg", "style");
+      st.textContent = "@keyframes leoDraw{to{stroke-dashoffset:0}}@keyframes leoFill{to{fill-opacity:1}}";
+      root.insertBefore(st, root.firstChild);
+      return new XMLSerializer().serializeToString(root);
+    } catch {
+      return svg;
+    }
+  }
   function parseTable(inner) {
     const rows = [];
     for (let line of String(inner).split("\n")) {
@@ -1598,7 +1789,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       blocks.push({ type, data });
       return "\n[[bloc:" + (blocks.length - 1) + "]]\n";
     };
-    text = String(text).replace(/<dictee>([\s\S]*?)<\/dictee>/gi, (_, i) => add("dictee", parseDictee(i))).replace(/<dessin>([\s\S]*?)<\/dessin>/gi, (_, i) => add("dessin", sanitizeSvg(i))).replace(/```[a-z]*\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, (_, i) => add("dessin", sanitizeSvg(i))).replace(/<svg[\s\S]*?<\/svg>/gi, (i) => add("dessin", sanitizeSvg(i))).replace(/<tableau>([\s\S]*?)<\/tableau>/gi, (_, i) => add("tableau", parseTable(i))).replace(/<pose>([\s\S]*?)<\/pose>/gi, (_, i) => add("pose", parsePose(i)));
+    text = String(text).replace(/<dictee>([\s\S]*?)<\/dictee>/gi, (_, i) => add("dictee", parseDictee(i))).replace(/<secret>([\s\S]*?)<\/secret>/gi, (_, i) => add("secret", String(i).trim().slice(0, 80) || null)).replace(/<dessinlent>([\s\S]*?)<\/dessinlent>/gi, (_, i) => {
+      const svg = sanitizeSvg(i);
+      return add("dessin", svg ? animateSvg(svg) : null);
+    }).replace(/<dessin>([\s\S]*?)<\/dessin>/gi, (_, i) => add("dessin", sanitizeSvg(i))).replace(/```[a-z]*\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, (_, i) => add("dessin", sanitizeSvg(i))).replace(/<svg[\s\S]*?<\/svg>/gi, (i) => add("dessin", sanitizeSvg(i))).replace(/<tableau>([\s\S]*?)<\/tableau>/gi, (_, i) => add("tableau", parseTable(i))).replace(/<pose>([\s\S]*?)<\/pose>/gi, (_, i) => add("pose", parsePose(i)));
     text = text.replace(/(?:^[ \t]*\|.*\|[ \t]*(?:\n|$)){2,}/gm, (m) => add("tableau", parseTable(m)));
     if (/<(dessin|svg|tableau|pose|dictee)\b/i.test(text)) {
       failed = true;
@@ -1620,6 +1814,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (b.type === "tableau") return "<tableau>\n" + b.data.rows.map((r) => r.join(" | ")).join("\n") + "\n</tableau>";
     if (b.type === "pose") return "<pose>\n" + b.data.lines.join("\n") + "\n</pose>";
     if (b.type === "dictee") return "<dictee>" + b.data.groups.join(" | ") + "</dictee>";
+    if (b.type === "secret") return "<secret>" + b.data + "</secret>";
     return "";
   }
   function forModel(m, fullDrawing) {
@@ -1632,6 +1827,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (b.type === "tableau") return b.data && Array.isArray(b.data.rows);
     if (b.type === "pose") return b.data && Array.isArray(b.data.lines);
     if (b.type === "dictee") return b.data && Array.isArray(b.data.groups);
+    if (b.type === "secret") return typeof b.data === "string";
     return false;
   }
   function normalizeItem(m) {
@@ -2549,6 +2745,16 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       d.readAll();
       return true;
     }
+    if (/^(on )?(quitte|arrete|sors|sort) (du |le )?mode\b/.test(t)) {
+      setMode("", true);
+      return true;
+    }
+    const mm = /\bmode (leo )?(prof|professeur|devoirs?|robot\w*|invent\w*|createur|3 ?d|cr[ea]a\w* 3d|scien\w*|english|anglais|missions?)\b/.exec(t);
+    if (mm) {
+      const k = mm[2], id = /^prof|^devoir/.test(k) ? "prof" : /^robot/.test(k) ? "robotique" : /^invent/.test(k) ? "inventeur" : /3 ?d|createur|crea/.test(k) ? "3d" : /^scien/.test(k) ? "science" : /english|anglais/.test(k) ? "english" : "missions";
+      setMode(id, true);
+      return true;
+    }
     if (/^(ferme|enleve|cache) (le |la |ca|ce )?(dessin|tableau|panneau|operation|ca)?\b/.test(t) && rob("robotPanel").classList.contains("open")) {
       closePanel();
       return true;
@@ -2556,7 +2762,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return false;
   }
   function renderBlock(b) {
-    if (!validBlock(b)) return null;
+    if (!validBlock(b) || b.type === "secret") return null;
     if (b.type === "dessin") {
       const img = el("img", "drawing");
       img.alt = "Dessin de Léo";
@@ -2748,7 +2954,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   function showScore(sc) {
     const b = document.getElementById("robotScore");
     if (!b) return;
-    b.textContent = sc ? "🎲 " + sc : "";
+    b.textContent = sc ? /^[⏱👏]/.test(sc) ? sc : "🎲 " + sc : "";
     b.style.display = sc ? "" : "none";
   }
   async function readStream(response, early) {
@@ -2769,8 +2975,15 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         } catch {
         }
       }
+      if (!readStream.emo) {
+        const em = raw.match(/<emotion>\s*([^<]{1,20}?)\s*<\/emotion>/i);
+        if (em) {
+          readStream.emo = 1;
+          robotEmotion(em[1]);
+        }
+      }
       if (early && !early.text) {
-        const m = raw.replace(/<score>[^<]*<\/score>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        const m = raw.replace(/<(score|emotion|chrono)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
         if (m) {
           const t = speechSource(cleanText(m[1])).trim();
           if (t.length >= 3) {
@@ -2780,6 +2993,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
     };
+    readStream.emo = 0;
     if (response.body && response.body.getReader) {
       const reader = response.body.getReader(), dec = new TextDecoder();
       for (; ; ) {
@@ -2812,7 +3026,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const userText = text || (images.length > 1 ? "Voici les photos de mon exercice." : "Voici une photo de mon exercice.");
     const lastLeo = [...conversation].reverse().find((m) => m.role === "assistant");
     const check = images.length ? "" : verifyAnswer(lastLeo ? textOnly(lastLeo.text) : "", userText);
-    const inGame = gameOn || /\bjou|devinette|qui suis-je|mot myst|quiz|vrai ou faux|intrus|d[ée]fi calcul/i.test(userText);
+    const inGame = (gameOn || /\bjou|devinette|qui suis-je|mot myst|quiz|vrai ou faux|intrus|d[ée]fi calcul/i.test(userText)) && !/jacques|juste nombre|chrono|histoire|claps|syllabe|émotion|emotion/i.test(userText + " " + (lastLeo ? lastLeo.text : ""));
     const sentText = userText + check + (viaVoice ? " [dicté à la voix]" : "") + (inGame ? gameHint() : "");
     addMessage("user", userText, images);
     input.value = "";
@@ -2845,11 +3059,20 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
-      let score = "";
-      const noScore = noMemo.replace(/<score>\s*([^<]{1,40}?)\s*<\/score>/gi, (_, x) => {
+      let score = "", emo = "", claps = false, chrono = "";
+      const noScore = noMemo.replace(/<score>\s*([^<]{1,60}?)\s*<\/score>/gi, (_, x) => {
         score = x;
         return "";
-      }).replace(/<\/?score>/gi, "");
+      }).replace(/<\/?score>/gi, "").replace(/<emotion>\s*([^<]{1,20}?)\s*<\/emotion>/gi, (_, x) => {
+        emo = x;
+        return "";
+      }).replace(/<claps\s*\/?>(\s*<\/claps>)?/gi, () => {
+        claps = true;
+        return "";
+      }).replace(/<chrono>\s*(start|stop)\s*<\/chrono>/gi, (_, x) => {
+        chrono = x.toLowerCase();
+        return "";
+      });
       const { text: noSujet, sujet } = extractSujet(noScore);
       const { text: withMarks, blocks } = extractBlocks(noSujet);
       const { text: noAscii, hadAscii } = stripAsciiArt(withMarks);
@@ -2871,6 +3094,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       }
       gameOn = !!score;
       showScore(score);
+      if (emo) robotEmotion(emo);
+      if (chrono) chronoTag(chrono);
+      if (claps) startClapsAfterSpeech();
       stickBottom = false;
       showTop(bubble);
       if (settings.autoRead || viaVoice || R.on) {
@@ -3025,6 +3251,17 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     $("memDiff").value = memory.difficultes.join("\n");
     $("memInfos").value = memory.infos.join("\n");
     $("memConsignes").value = (memory.consignes || []).join("\n");
+    const box = $("allowedModes");
+    box.replaceChildren();
+    const allowed = allowedModes();
+    for (const m of MODES) {
+      const l = el("label", "row"), c = el("input");
+      c.type = "checkbox";
+      c.value = m.id;
+      c.checked = allowed.includes(m.id);
+      l.append(c, " " + m.e + " " + m.name);
+      box.append(l);
+    }
   }
   let pinOk = false;
   function askPin() {
@@ -3129,7 +3366,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const age = Number($("editAge").value);
       if (Number.isInteger(age) && age >= 3 && age <= 18) prof.age = age;
       if (CLASSES.includes($("editClass").value)) prof.schoolClass = $("editClass").value;
+      prof.modes = [...$("allowedModes").querySelectorAll("input:checked")].map((c) => c.value);
       saveJSON(PROFILES_KEY, profiles);
+      showModeChip();
       renderProfiles();
       memory = { forts: lines($("memForts").value), difficultes: lines($("memDiff").value), infos: lines($("memInfos").value), consignes: lines($("memConsignes").value).slice(0, MAX_CONSIGNES) };
       saveJSON(memoryKey(activeId), memory);
@@ -3165,6 +3404,32 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       rate: Number($("rateInput").value) || 1.2,
       test: true
     });
+  });
+  $("clearHistory").addEventListener("click", () => {
+    const p = currentProfile();
+    if (!p) return;
+    if (!confirm("Effacer tout l’historique de " + p.name + " (conversations, résumés de séances, questions de jeu, records) ?\nCe que Léo a retenu (points forts, difficultés…) est gardé : utilise « Vider la mémoire » pour l’effacer aussi.")) return;
+    for (const k of [historyKey(p.id), unsumKey(p.id), sessionsKey(p.id), topicsKey(p.id), statsKey(p.id), alertsKey(p.id), askedKey(p.id), recordKey(p.id), modeKey(p.id), "leo_mailed_v22_" + p.id]) {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+      }
+    }
+    conversation = [];
+    stopSpeaking();
+    activeDictee = null;
+    gameOn = false;
+    showScore("");
+    showModeChip();
+    displayConversation();
+    closePanel();
+    rob("robotSub").replaceChildren();
+    rob("robotHeard").textContent = "";
+    renderBilan(p);
+    $("clearHistory").textContent = "✅ Historique effacé";
+    setTimeout(() => {
+      $("clearHistory").textContent = "🗑️ Effacer l’historique";
+    }, 3e3);
   });
   $("clearMemory").addEventListener("click", () => {
     if (!currentProfile() || !confirm("Effacer tout ce que Léo a retenu sur " + currentProfile().name + " ?")) return;
@@ -3208,34 +3473,66 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     saveJSON(historyKey(activeId), conversation);
     if (activeDictee && activeDictee.active()) activeDictee.pause();
     activeDictee = null;
+    R.emotion = "";
+    R.chrono = 0;
+    clearInterval(R.chronoTimer);
+    showScore("");
+    gameOn = false;
     stopSpeaking();
     displayConversation();
   });
   const GAMES = [
-    ["🧩 Devinettes", "Des énigmes rigolotes", "des devinettes"],
-    ["🕵️ Qui suis-je ?", "Devine avec des indices", "Qui suis-je ?"],
-    ["🔤 Mot mystère", "Trouve le mot lettre par lettre", "au mot mystère"],
-    ["✅ Vrai ou faux", "Sur plein de sujets", "au vrai ou faux"],
-    ["🌍 Quiz du monde", "Animaux, espace, pays…", "à un quiz de culture générale"],
-    ["🔢 Défi calcul", "Calcul mental, de plus en plus dur", "à un défi de calcul mental"],
-    ["🙃 L’intrus", "Trouve celui qui n’a rien à faire là", "à trouver l’intrus"],
-    ["🎁 Surprise", "Léo choisit pour toi", "à un jeu surprise (choisis-en un amusant)"]
+    // [titre, description, demande envoyée à Léo, public : 'p' petits, 'g' grands, 't' tous, 'f' famille]
+    ["😊 Devine mon émotion", "Léo fait une tête : laquelle ?", "à « Devine mon émotion »", "p"],
+    ["🍎 Combien il y en a ?", "Compte les dessins", "à « Combien il y en a ? »", "p"],
+    ["👏 Tape les syllabes", "Le micro compte tes claps", "à « Tape les syllabes »", "p"],
+    ["🔤 Le son du début", "Un mot qui commence par…", "au « Son du début »", "p"],
+    ["🐮 Les cris des animaux", "Meuh, miaou, cocorico…", "aux « Cris des animaux »", "p"],
+    ["🐉 L’histoire dont tu es le héros", "Tu choisis la suite", "à « L’histoire dont tu es le héros »", "p"],
+    ["🙋 Jacques a dit", "Fais ce que Jacques dit !", "à « Jacques a dit »", "p"],
+    ["🎨 Léo dessine, tu devines", "Le dessin apparaît petit à petit", "à « Léo dessine, tu devines »", "t"],
+    ["🧩 Devinettes", "Des énigmes rigolotes", "aux devinettes", "t"],
+    ["🕵️ Qui suis-je ?", "Devine avec des indices", "à « Qui suis-je ? »", "t"],
+    ["🔢 Le juste nombre", "Plus grand ? Plus petit ?", "au « Juste nombre »", "g"],
+    ["⏱ Chrono calcul", "10 calculs, bats ton record", "à « Chrono calcul »", "g"],
+    ["📖 L’histoire à deux", "Chacun sa phrase", "à « L’histoire à deux »", "g"],
+    ["🔤 Mot mystère", "Trouve le mot lettre par lettre", "au mot mystère", "g"],
+    ["✅ Vrai ou faux", "Sur plein de sujets", "au vrai ou faux", "g"],
+    ["🌍 Quiz du monde", "Animaux, espace, pays…", "à un quiz de culture générale", "g"],
+    ["🙃 L’intrus", "Trouve celui qui n’a rien à faire là", "à trouver l’intrus", "g"],
+    ["⚔️ Le duel des frères", "À deux, chacun son tour", "au « Duel des frères »", "f"],
+    ["🎁 Surprise", "Léo choisit pour toi", "à un jeu surprise (choisis-en un amusant pour mon âge)", "t"]
   ];
-  for (const [title, desc, ask] of GAMES) {
-    const b = el("button");
-    b.type = "button";
-    b.append(el("b", null, title), el("span", null, desc));
-    b.addEventListener("click", () => {
-      $("gameDialog").close();
-      if (currentProfile() && !busy) {
-        input.value = "On joue " + ask + " ! 🎲";
-        sendMessage();
+  function renderGames() {
+    const list = $("gameList");
+    list.replaceChildren();
+    const p = currentProfile(), small = p && p.age <= 7;
+    const groups = [["p", "🧸 Pour les petits"], ["t", "🎲 Pour tous"], ["g", "🧠 Pour les grands"], ["f", "👨‍👩‍👦 En famille"]];
+    if (!small) groups.sort((a, b) => a[0] === "g" ? -1 : b[0] === "g" ? 1 : 0);
+    for (const [k, label] of groups) {
+      list.append(el("div", "gamehead", label));
+      for (const [title, desc, ask, who] of GAMES.filter((g) => g[3] === k)) {
+        const b = el("button");
+        b.type = "button";
+        b.append(el("b", null, title), el("span", null, desc));
+        b.addEventListener("click", () => {
+          $("gameDialog").close();
+          if (currentProfile() && !busy) {
+            unlockSpeech();
+            R.lastActivity = Date.now();
+            input.value = "On joue " + ask + " ! 🎲";
+            sendMessage();
+          }
+        });
+        list.append(b);
       }
-    });
-    $("gameList").append(b);
+    }
   }
   $("playBtn").addEventListener("click", () => {
-    if (currentProfile() && !busy) $("gameDialog").showModal();
+    if (currentProfile() && !busy) {
+      renderGames();
+      $("gameDialog").showModal();
+    }
   });
   $("dicteeBtn").addEventListener("click", () => {
     if (currentProfile() && !busy) {
@@ -3555,7 +3852,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     R.lastFrame = Date.now();
     const now = Date.now(), st = robotState(), face = rob("robotFace");
-    if (face.getAttribute("class") !== "face " + st) face.setAttribute("class", "face " + st);
+    const emo = R.emotion && now < R.emotionUntil ? R.emotion : "";
+    const cls = "face " + st + (emo ? " emo-" + emo : "");
+    if (face.getAttribute("class") !== cls) face.setAttribute("class", cls);
     if (now > R.look.next) {
       const range = st === "thinking" ? 0 : st === "listening" ? 6 : st === "question" ? 8 : 22;
       R.look.tx = (Math.random() * 2 - 1) * range;
@@ -3580,15 +3879,25 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const open = st === "sleep" ? 0.08 : 1 - Math.sin(R.blink * Math.PI) * 0.92;
     const tall = st === "listening" ? 1.12 : st === "thinking" ? 0.8 : st === "excited" ? 1.15 : 1;
     const tallR = st === "question" ? 0.82 : tall;
-    const tr = (t) => `scale(${(0.96 + 0.04 * t).toFixed(3)} ${(open * (0.9 + 0.1 * t)).toFixed(3)})`;
+    const eo = { triste: [1, 0.86], surpris: [1.1, 1.18], fache: [1, 0.66], fatigue: [1, 0.42], peur: [1.06, 1.14], amoureux: [1, 1] }[emo] || [1, 1];
+    const tr = (t) => `scale(${((0.96 + 0.04 * t) * eo[0]).toFixed(3)} ${(open * (0.9 + 0.1 * t) * eo[1]).toFixed(3)})`;
     rob("eyeL").setAttribute("transform", tr(tall));
     rob("eyeR").setAttribute("transform", tr(tallR));
-    const ix = Math.max(-9, Math.min(9, R.look.x * 0.5)).toFixed(1), iy = Math.max(-11, Math.min(11, R.look.y * 0.5)).toFixed(1);
+    const ix = Math.max(-9, Math.min(9, R.look.x * 0.5)).toFixed(1), iy = (emo === "triste" ? 9 : emo === "fatigue" ? 6 : Math.max(-11, Math.min(11, R.look.y * 0.5))).toFixed(1);
     rob("irisL").setAttribute("transform", `translate(${ix} ${iy})`);
     rob("irisR").setAttribute("transform", `translate(${ix} ${iy})`);
     const lift = st === "excited" ? -10 : st === "listening" ? -6 : 0;
-    rob("browL").setAttribute("transform", st === "question" ? "translate(0 4) rotate(-6 126 60)" : st === "thinking" ? "translate(0 4)" : `translate(0 ${lift})`);
-    rob("browR").setAttribute("transform", st === "question" ? "translate(0 -12) rotate(10 274 60)" : st === "thinking" ? "translate(0 -6)" : `translate(0 ${lift})`);
+    const BROW = {
+      // sourcils de chaque émotion (gauche, droite)
+      triste: ["translate(0 -4) rotate(-16 125 72)", "translate(0 -4) rotate(16 275 72)"],
+      surpris: ["translate(0 -18)", "translate(0 -18)"],
+      fache: ["translate(6 22) rotate(28 160 74)", "translate(-6 22) rotate(-28 240 74)"],
+      fatigue: ["translate(0 8)", "translate(0 8)"],
+      peur: ["translate(0 -12) rotate(-10 125 72)", "translate(0 -12) rotate(10 275 72)"],
+      amoureux: ["translate(0 -8)", "translate(0 -8)"]
+    }[emo];
+    rob("browL").setAttribute("transform", BROW ? BROW[0] : st === "question" ? "translate(0 4) rotate(-6 126 60)" : st === "thinking" ? "translate(0 4)" : `translate(0 ${lift})`);
+    rob("browR").setAttribute("transform", BROW ? BROW[1] : st === "question" ? "translate(0 -12) rotate(10 274 60)" : st === "thinking" ? "translate(0 -6)" : `translate(0 ${lift})`);
     let target = 0;
     if (st === "speaking") {
       if (voPlaying()) {
@@ -3618,7 +3927,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     R.mouth += (target - R.mouth) * 0.5;
     const m = R.mouth;
-    setMouth(m, st);
+    setMouth(m, st, emo);
     if (R.recording && (R.micAnalyser || R.cap)) {
       const l = R.cap ? R.micLevel : level(R.micAnalyser);
       rob("ring").setAttribute("r", (170 + Math.min(1, l * 6) * 22).toFixed(1));
@@ -3632,8 +3941,24 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     } else if (HF.on && Mic.live) rob("ring").setAttribute("r", (170 + Math.min(1, Mic.level * 6) * 22).toFixed(1));
     requestAnimationFrame(robotFrame);
   }
-  function setMouth(m, st) {
-    const joy = st === "happy" || st === "excited";
+  function setMouth(m, st, emo) {
+    const cxm = 200, ym = 262;
+    if (emo && st !== "speaking") {
+      const D = {
+        triste: `M${cxm - 30} ${ym + 14} Q${cxm} ${ym - 12} ${cxm + 30} ${ym + 14} Q${cxm} ${ym - 2} ${cxm - 30} ${ym + 14}Z`,
+        surpris: `M${cxm - 15} ${ym + 6} Q${cxm - 15} ${ym - 14} ${cxm} ${ym - 14} Q${cxm + 15} ${ym - 14} ${cxm + 15} ${ym + 6} Q${cxm + 15} ${ym + 26} ${cxm} ${ym + 26} Q${cxm - 15} ${ym + 26} ${cxm - 15} ${ym + 6}Z`,
+        peur: `M${cxm - 22} ${ym + 4} Q${cxm} ${ym - 8} ${cxm + 22} ${ym + 4} Q${cxm} ${ym + 22} ${cxm - 22} ${ym + 4}Z`,
+        fache: `M${cxm - 24} ${ym + 8} Q${cxm} ${ym - 4} ${cxm + 24} ${ym + 8} Q${cxm} ${ym + 2} ${cxm - 24} ${ym + 8}Z`,
+        fatigue: `M${cxm - 14} ${ym + 4} Q${cxm} ${ym + 10} ${cxm + 14} ${ym + 4} Q${cxm} ${ym + 14} ${cxm - 14} ${ym + 4}Z`
+      }[emo];
+      if (D) {
+        rob("mouth").setAttribute("d", D);
+        rob("mouthClipPath").setAttribute("d", D);
+        rob("tongue").setAttribute("ry", "0");
+        return;
+      }
+    }
+    const joy = st === "happy" || st === "excited" || emo === "content" || emo === "amoureux";
     let w = joy ? 46 : st === "sleep" ? 18 : st === "thinking" ? 14 : st === "question" ? 26 : 36;
     let h = st === "speaking" ? 5 + m * 30 : joy ? 32 : st === "sleep" ? 2 : st === "thinking" ? 9 : st === "question" ? 6 : st === "listening" ? 18 : 22;
     if (st === "speaking") w = 36 - m * 8 + (m > 0.3 ? (R.syl.wide - 0.5) * 12 : 0);
@@ -3650,6 +3975,96 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       t.setAttribute("rx", (w * 0.48).toFixed(1));
       t.setAttribute("ry", ry.toFixed(1));
     }
+  }
+  const EMO_ALIAS = { content: "content", joyeux: "content", heureux: "content", triste: "triste", surpris: "surpris", etonne: "surpris", fache: "fache", colere: "fache", "en colere": "fache", fatigue: "fatigue", endormi: "fatigue", peur: "peur", effraye: "peur", amoureux: "amoureux" };
+  function robotEmotion(name) {
+    const k = String(name).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+    const e = EMO_ALIAS[k];
+    if (!e) return;
+    R.emotion = e;
+    R.emotionUntil = Date.now() + 14e3;
+    R.lastActivity = Date.now();
+    if (e === "content") R.happyUntil = Date.now() + 6e3;
+  }
+  const recordKey = (id) => "leo_record_v54_" + id;
+  function chronoTag(what) {
+    if (what === "start") {
+      R.chrono = Date.now();
+      clearInterval(R.chronoTimer);
+      R.chronoTimer = setInterval(() => {
+        if (R.chrono) showScore("⏱ " + Math.round((Date.now() - R.chrono) / 1e3) + " s");
+      }, 1e3);
+      return;
+    }
+    if (!R.chrono) return;
+    clearInterval(R.chronoTimer);
+    const t = Math.round((Date.now() - R.chrono) / 1e3);
+    R.chrono = 0;
+    const old = Number(readJSON(recordKey(activeId), 0)) || 0, best = !old || t < old;
+    if (best) saveJSON(recordKey(activeId), t);
+    showScore("⏱ " + t + " s · record " + (best ? t : old) + " s");
+    const msg = best ? `Ton temps : ${t} secondes. C'est un nouveau record, bravo !` : `Ton temps : ${t} secondes. Ton record est de ${old} secondes. Tu veux essayer de le battre ?`;
+    setTimeout(() => speak(msg, { keep: true }), 0);
+    if (best) R.happyUntil = Date.now() + 5e3;
+  }
+  function startClapsAfterSpeech() {
+    if (!Mic.live) {
+      robotStatus("Dis-moi combien de fois tu as tapé dans tes mains !");
+      return;
+    }
+    let waited = 0;
+    const iv = setInterval(() => {
+      waited += 100;
+      if (speakingNow() || speechActive > 0 || busy) {
+        if (waited < 3e4) return;
+      }
+      clearInterval(iv);
+      clapListen();
+    }, 100);
+  }
+  function clapListen() {
+    const C = { n: 0, last: 0, start: Date.now(), noise: 0.02, prev: 0, t: 0 };
+    R.clapActive = true;
+    hfReset();
+    robotStatus("👏 Tape dans tes mains !");
+    R.excitedUntil = Date.now() + 8e3;
+    const f = (d, rms, dur) => {
+      const W = 256, rate = Mic.rate || 44100;
+      for (let i = 0; i < d.length; i += W) {
+        let pk = 0;
+        for (let j = i; j < i + W && j < d.length; j++) {
+          const a = d[j] < 0 ? -d[j] : d[j];
+          if (a > pk) pk = a;
+        }
+        const tms = C.t + i / rate * 1e3;
+        const thr = Math.max(0.18, C.noise * 7);
+        if (pk > thr && C.prev < thr * 0.6 && tms - C.last > 160) {
+          C.n++;
+          C.last = tms;
+          robotStatus("👏 " + Array.from({ length: C.n }, (_, k) => k + 1).join(" · "));
+        }
+        if (pk < thr * 0.5) C.noise = C.noise * 0.98 + pk * 0.02;
+        C.prev = pk;
+      }
+      C.t += dur * 1e3;
+      const quiet = C.n ? C.t - C.last > 1600 : C.t > 7e3;
+      if (quiet) finish();
+    };
+    const finish = () => {
+      const i = Mic.listeners.indexOf(f);
+      if (i >= 0) Mic.listeners.splice(i, 1);
+      R.clapActive = false;
+      if (!C.n) {
+        robotStatus("Je n’ai pas entendu de clap. Tu peux me dire combien de fois tu as tapé.");
+        hfSetMode("convo");
+        return;
+      }
+      input.value = `👏 J'ai tapé ${C.n} fois dans mes mains. [Claps comptés par le micro : ${C.n}]`;
+      lastInputWasVoice = false;
+      P.wait = true;
+      sendMessage();
+    };
+    Mic.listeners.push(f);
   }
   function blobToBase64(blob) {
     return new Promise((res, rej) => {
@@ -3908,7 +4323,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     robotPanel(blocks);
   }
   function robotPanel(blocks) {
-    const list = (blocks || []).filter(validBlock);
+    const list = (blocks || []).filter((b) => validBlock(b) && b.type !== "secret");
     const box = rob("robotPanelBody");
     if (!list.length) {
       closePanel();
@@ -3986,6 +4401,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (R.on) {
       const p = currentProfile();
       rob("robotName").textContent = p ? p.name : "Qui es-tu ?";
+      showModeChip();
       robotStatus(p ? CAN_RECORD ? "Appuie sur 🎤 pour me parler !" : micHelp() : "");
       if (!CAN_RECORD) showKeyboardFallback();
       if (hfWanted() && !HF.on) hfAutoStart();
@@ -4074,6 +4490,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const p = currentProfile();
     if (!p) return;
     rob("robotName").textContent = p.name;
+    showModeChip();
     R.lastActivity = Date.now();
     R.questionUntil = Date.now() + 8e3;
     rob("robotHeard").textContent = "";
@@ -4116,8 +4533,22 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     $("fileInput").click();
   });
   menuDo("mPlay", () => {
-    if (currentProfile() && !busy) $("gameDialog").showModal();
-    else if (!currentProfile()) openWho();
+    if (currentProfile() && !busy) {
+      renderGames();
+      $("gameDialog").showModal();
+    } else if (!currentProfile()) openWho();
+  });
+  menuDo("mModes", () => openModes());
+  rob("robotMode").addEventListener("click", (e) => {
+    e.stopPropagation();
+    setMode("", true);
+  });
+  $("modeOff").addEventListener("click", () => {
+    $("modeDialog").close();
+    setMode("", true);
+  });
+  $("modesBtn").addEventListener("click", () => {
+    if (currentProfile()) openModes();
   });
   menuDo("mDictee", () => {
     if (currentProfile() && !busy) {
@@ -4564,7 +4995,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (!HF.on && !HF.testOnly) return;
     const now = Date.now(), ms = dur * 1e3;
     const talking = speakingNow() || speechActive > 0;
-    const blocked = !HF.testOnly && (busy && !talking || R.recording || !currentProfile() || rob("robotWhoPanel").classList.contains("open") || !talking && now < R.awaitingVoice) || HF.pending;
+    const blocked = !HF.testOnly && (busy && !talking || R.recording || R.clapActive || !currentProfile() || rob("robotWhoPanel").classList.contains("open") || !talking && now < R.awaitingVoice) || HF.pending;
     if (blocked) {
       if (HF.capturing) hfReset();
       if (HF.mode === "convo") HF.convoUntil = now + 25e3;
@@ -5319,7 +5750,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, voiceCommand, echo: echoOfLeo };
+  window.leoDebug = { Mic, HF, P, VO, voiceCommand, echo: echoOfLeo, emotion: robotEmotion };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
