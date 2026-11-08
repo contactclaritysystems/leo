@@ -247,7 +247,8 @@
   .mtbtns button { display: block; width: 100%; margin: 8px 0; height: 50px; border-radius: 12px; font-size: 16px; background: #1d4ed8; }
   .mtbtns.dis button { opacity: .4; pointer-events: none; }
   .mtlive { font-size: 20px; line-height: 1.4; color: #fde68a; min-height: 28px; margin: 6px 0; }
-  #robotHeard.live { color: #93c5fd; }
+  #robotHeard.live { color: #fde68a; font-size: 20px; }
+  #robotDiag { display: none; position: absolute; left: 8px; bottom: 4px; right: 8px; font-size: 11px; color: #64748b; white-space: pre-line; text-align: left; pointer-events: none; z-index: 2; }
   #robotHeard.ignored { color: #475569; font-style: italic; }
   .mtlog { font-size: 14px; padding-left: 18px; margin: 6px 0; }
   .mtlog li { margin: 4px 0; }
@@ -313,6 +314,7 @@
   </div>
   <div id="robotStatus"></div>
   <div id="robotHeard"></div>
+  <div id="robotDiag"></div>
   <div id="robotSub"></div>
   <div id="robotPanel"><button type="button" id="robotPanelClose" aria-label="Fermer">✖</button><div id="robotPanelBody"></div></div>
   <div id="robotWhoPanel" class="whopanel">
@@ -395,7 +397,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v35</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v36</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -2788,6 +2790,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (!profiles.length) $("profileDialog").showModal();
   });
   const ROBOT_KEY = "leo_robot_mode_v28";
+  const OLD_DEVICE = !window.MediaRecorder;
   const R = {
     on: false,
     rec: null,
@@ -2880,8 +2883,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   function robotFrame() {
     if (!R.on) return;
+    if (OLD_DEVICE && Date.now() - (R.lastFrame || 0) < 40) {
+      requestAnimationFrame(robotFrame);
+      return;
+    }
+    R.lastFrame = Date.now();
     const now = Date.now(), st = robotState(), face = rob("robotFace");
-    face.setAttribute("class", "face " + st);
+    if (face.getAttribute("class") !== "face " + st) face.setAttribute("class", "face " + st);
     if (now > R.look.next) {
       const range = st === "thinking" ? 0 : st === "listening" ? 6 : st === "question" ? 8 : 22;
       R.look.tx = (Math.random() * 2 - 1) * range;
@@ -3043,7 +3051,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     R.recStart = R.lastLoud = Date.now();
     R.micLevel = 0;
     if (useWav) {
-      const src = capCtx.createMediaStreamSource(R.stream), proc = capCtx.createScriptProcessor(4096, 1, 1);
+      const src = capCtx.createMediaStreamSource(R.stream), proc = capCtx.createScriptProcessor(OLD_DEVICE ? 8192 : 4096, 1, 1);
       R.cap = { ctx: capCtx, src, proc, rate: capCtx.sampleRate, bufs: [] };
       proc.onaudioprocess = (e) => {
         if (!R.recording) return;
@@ -3052,6 +3060,22 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         let s = 0;
         for (let i = 0; i < d.length; i += 8) s += d[i] * d[i];
         R.micLevel = Math.sqrt(s / (d.length / 8));
+        const sec = R.cap.bufs.length * d.length / R.cap.rate;
+        if (R.startedSpeech && !R.cap.liveBusy && sec - (R.cap.liveAt || 0) >= 1.2) {
+          R.cap.liveAt = sec;
+          R.cap.liveBusy = true;
+          const cap = R.cap;
+          sttRequest(encodeWav(cap.bufs, cap.rate), "talk").then((t) => {
+            if (R.recording && t && !HALLU_RE.test(t)) {
+              const h = rob("robotHeard");
+              h.className = "live";
+              h.textContent = "✍️ " + t;
+            }
+          }, () => {
+          }).then(() => {
+            cap.liveBusy = false;
+          });
+        }
       };
       src.connect(proc);
       proc.connect(capCtx.destination);
@@ -3403,6 +3427,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (!Mic.live || Mic.paused || Mic.forceOpen || micMode() !== "pause") return;
     Mic.paused = true;
     Mic.quietSince = 0;
+    Mic.lastVoice = Date.now();
     try {
       Mic.stream.getTracks().forEach((t) => {
         t.onended = null;
@@ -3499,7 +3524,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   setInterval(() => {
     if (!Mic.paused) return;
-    if (speechActive || speakingNow()) {
+    if (speakingNow()) {
+      Mic.quietSince = 0;
+      Mic.lastVoice = Date.now();
+      return;
+    }
+    if (speechActive && Date.now() - (Mic.lastVoice || 0) < 4e3) {
       Mic.quietSince = 0;
       return;
     }
@@ -3538,7 +3568,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     const ctx = Mic.ctx;
     Mic.rate = ctx.sampleRate;
     Mic.src = ctx.createMediaStreamSource(Mic.stream);
-    Mic.proc = ctx.createScriptProcessor(4096, 1, 1);
+    Mic.proc = ctx.createScriptProcessor(OLD_DEVICE ? 8192 : 4096, 1, 1);
+    Mic.expected = (OLD_DEVICE ? 8192 : 4096) / Mic.rate * 1e3;
     Mic.proc.onaudioprocess = (e) => {
       const d = e.inputBuffer.getChannelData(0);
       let s = 0, pk = 0;
@@ -3549,8 +3580,10 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         if (a > pk) pk = a;
       }
       const rms = Math.sqrt(s / (d.length / 4));
+      const tnow = Date.now();
+      if (Mic.lastBlockAt && Mic.blocks > 2 && tnow - Mic.lastBlockAt > Mic.expected * 2.2) Mic.late = (Mic.late || 0) + 1;
       Mic.blocks++;
-      Mic.lastBlockAt = Date.now();
+      Mic.lastBlockAt = tnow;
       if (pk === 0) Mic.zeroBlocks++;
       else Mic.zeroBlocks = 0;
       Mic.level = rms;
@@ -3799,13 +3832,19 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       HF.pre.push(d);
       if (HF.pre.length > 4) HF.pre.shift();
       if (rms > thr) {
-        if (++HF.voiced >= 2) {
+        if (++HF.voiced >= (ms >= 150 ? 1 : 2)) {
           HF.capturing = true;
           HF.buf = HF.pre.slice();
           HF.pre = [];
           HF.capMs = HF.buf.length * ms;
-          HF.speechMs = 2 * ms;
+          HF.speechMs = HF.voiced * ms;
           HF.silentMs = 0;
+          HF.captures = (HF.captures || 0) + 1;
+          if (!HF.testOnly && R.on) {
+            const h = rob("robotHeard");
+            h.className = "live";
+            h.textContent = "🎙️ …";
+          }
         }
       } else {
         HF.voiced = 0;
@@ -3825,7 +3864,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       HF.spec.p.catch(() => {
       });
     }
-    if ((HF.testOnly || HF.mode === "convo") && !HF.partialBusy && HF.capMs - HF.partialAt >= 1200 && HF.silentMs < 300) {
+    if (!HF.partialBusy && HF.capMs - HF.partialAt >= 1e3 && HF.silentMs < 300) {
       HF.partialAt = HF.capMs;
       HF.partialBusy = true;
       sttRequest(encodeWav(HF.buf, Mic.rate), "talk").then((t) => {
@@ -4395,6 +4434,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   });
   if (/[?&]mictest=1/.test(location.search)) setTimeout(openMicTest, 300);
   window.leoDebug = { Mic, HF, P };
+  if (/[?&]diag=1/.test(location.search)) {
+    const dg = rob("robotDiag");
+    dg.style.display = "block";
+    setInterval(() => {
+      const t = micTrack();
+      dg.textContent = "👂 " + (!Mic.live ? "micro fermé" + (Mic.errorName ? " (" + Mic.errorName + ")" : "") : Mic.paused ? "micro en pause (Léo parle)" : Mic.reopening ? "réouverture…" : "micro ouvert") + " · son " + Mic.level.toFixed(3) + " / seuil " + hfThreshold().toFixed(3) + " · blocs " + Mic.blocks + " · perdus " + (Mic.late || 0) + " · " + (!HF.on ? "oreille éteinte" : HF.capturing ? "j’enregistre" : HF.pending ? "envoi…" : HF.mode === "wake" ? "attend « Léo »" : "conversation") + " · captés " + (HF.captures || 0) + " · envois " + (HF.sent || []).length + "/min" + (Mic.ctx ? " · " + Mic.ctx.state : "") + (t ? " · piste " + t.readyState : "") + " · mode " + micMode() + (Mic.events.length ? "\n" + Mic.events.slice(-2).join(" | ") : "");
+    }, 500);
+  }
   renderProfiles();
   let savedId = null;
   try {
