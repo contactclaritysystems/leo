@@ -383,6 +383,14 @@
   .mcard .mrow button { padding: 8px 10px; border-radius: 10px; font-size: 14px; }
   .badges { display: flex; flex-wrap: wrap; gap: 6px; }
   .badges .badge { background: #fef3c7; color: #78350f; border-radius: 999px; padding: 4px 10px; font-size: 14px; }
+
+  /* ---------- Projets + progrès (v58) ---------- */
+  #projectDialog { max-height: 88vh; overflow-y: auto; }
+  .prow { margin: 10px 0; }
+  .prow .plabel { font-size: 14px; margin-bottom: 4px; }
+  .prow .pbar { height: 10px; border-radius: 6px; background: #e5e7eb; overflow: hidden; }
+  .prow .pfill { height: 100%; border-radius: 6px; }
+  .prow .pnote { font-size: 13px; color: #475569; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -417,6 +425,7 @@
     <button type="button" id="mChat" role="menuitem">💬 Écrire à Léo / voir la conversation</button>
     <button type="button" id="mModes" role="menuitem">🧭 Les modes de Léo</button>
     <button type="button" id="mMissions" role="menuitem">🏆 Missions de la semaine</button>
+    <button type="button" id="mProjects" role="menuitem">📁 Mes projets</button>
     <button type="button" id="mPhoto" role="menuitem">📷 Montrer un exercice (photo)</button>
     <button type="button" id="mPlay" role="menuitem">🎲 Jouer</button>
     <button type="button" id="mDictee" role="menuitem">✍️ Faire une dictée</button>
@@ -558,6 +567,14 @@
   </form>
 </dialog>
 
+<dialog id="projectDialog">
+  <form method="dialog" style="gap:12px">
+    <h2 id="projectTitle">📁 Mes projets</h2>
+    <div id="projectList"></div>
+    <div class="dialog-actions"><button class="small-btn grey" value="cancel">Fermer</button></div>
+  </form>
+</dialog>
+
 <dialog id="gameDialog">
   <form method="dialog" style="gap:12px">
     <h2>🎲 À quoi on joue ?</h2>
@@ -590,7 +607,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v57</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v58</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1611,6 +1628,160 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     const m = await ensureMissions();
     if ($("missionDialog").open) renderMissions(m);
   }
+  const projectsKey = (id) => "leo_projects_v58_" + id;
+  function loadProjects(id) {
+    const x = readJSON(projectsKey(id), []);
+    return Array.isArray(x) ? x : [];
+  }
+  function activeProjects(id) {
+    return loadProjects(id).filter((x) => !x.fini && Date.now() - x.updated < 45 * 864e5).sort((a, b) => b.updated - a.updated);
+  }
+  function upsertProject(raw) {
+    if (!activeId) return;
+    let d;
+    try {
+      d = JSON.parse(String(raw).replace(/```(json)?/gi, "").trim());
+    } catch {
+      return;
+    }
+    if (!d || typeof d.titre !== "string" || !d.titre.trim()) return;
+    const list = loadProjects(activeId), nz = (t) => norm(String(t)).replace(/^(le|la|les|l|un|une|ma|mon|mes) /, "");
+    let x = list.find((y) => nz(y.titre) === nz(d.titre) || nz(y.titre).includes(nz(d.titre)) || nz(d.titre).includes(nz(y.titre)));
+    if (!x) {
+      x = { id: Date.now().toString(36), titre: d.titre.trim().slice(0, 60), created: Date.now() };
+      list.push(x);
+    }
+    const m = currentMode();
+    Object.assign(x, {
+      mode: d.mode || x.mode || (m ? m.id : ""),
+      etape: String(d.etape || x.etape || "").slice(0, 60),
+      resume: String(d.resume || x.resume || "").slice(0, 300),
+      prochaine: String(d.prochaine || "").slice(0, 140),
+      fini: !!d.fini,
+      updated: Date.now()
+    });
+    saveJSON(projectsKey(activeId), list.sort((a, b) => b.updated - a.updated).slice(0, 12));
+  }
+  function projectHint(p) {
+    const x = activeProjects(p.id)[0];
+    if (!x) return "";
+    return ` On continue ton projet « ${x.titre} » ?` + (x.prochaine ? ` On en était à : ${x.prochaine.replace(/[.!]+$/, "")}.` : "");
+  }
+  function projectsPrompt(p) {
+    const list = activeProjects(p.id);
+    if (!list.length) return "";
+    return "PROJETS EN COURS de " + p.name + " (reprends-les exactement là où vous vous étiez arrêtés, en rappelant en une phrase où on en était) : " + list.slice(0, 5).map((x, i) => `${i + 1}) « ${x.titre} »${x.mode ? " [mode " + x.mode + "]" : ""} — étape : ${x.etape || "?"} — fait : ${x.resume || "?"} — prochaine étape : ${x.prochaine || "?"}`).join(" ; ");
+  }
+  function renderProjects() {
+    const p = currentProfile(), box = $("projectList");
+    box.replaceChildren();
+    const list = loadProjects(p.id).sort((a, b) => a.fini - b.fini || b.updated - a.updated);
+    $("projectTitle").textContent = "📁 Projets de " + p.name;
+    if (!list.length) {
+      box.append(el("p", "note", "Pas encore de projet. Dans les modes Inventeur, Créateur 3D, Robotique ou Scientifique, Léo note où tu en es pour reprendre la prochaine fois."));
+      return;
+    }
+    for (const x of list) {
+      const c = el("div", "mcard" + (x.fini ? " done" : ""));
+      c.append(el("div", "mhead", (x.fini ? "✅ " : "🛠️ ") + x.titre), el("div", "mdesc", (x.etape ? "Étape : " + x.etape + ". " : "") + (x.resume || "")));
+      if (!x.fini && x.prochaine) c.append(el("div", "mmat", "➡️ Prochaine étape : " + x.prochaine));
+      c.append(el("div", "mmat", "Dernière fois : " + new Date(x.updated).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })));
+      const row = el("div", "mrow");
+      if (!x.fini) {
+        const go = el("button", null, "▶️ Continuer");
+        go.type = "button";
+        go.addEventListener("click", () => {
+          $("projectDialog").close();
+          unlockSpeech();
+          if (x.mode && MODES.some((m) => m.id === x.mode) && allowedModes().includes(x.mode)) saveJSON(modeKey(activeId), x.mode);
+          showModeChip();
+          input.value = `On continue mon projet « ${x.titre} » !`;
+          lastInputWasVoice = false;
+          if (!busy) sendMessage();
+        });
+        const fin = el("button", "grey", "✅ Terminé");
+        fin.type = "button";
+        fin.addEventListener("click", () => {
+          const l = loadProjects(activeId);
+          const y = l.find((z) => z.id === x.id);
+          if (y) {
+            y.fini = true;
+            y.updated = Date.now();
+            saveJSON(projectsKey(activeId), l);
+          }
+          R.happyUntil = Date.now() + 4e3;
+          speak("Bravo, projet terminé ! " + x.titre + ", c’est réussi !");
+          renderProjects();
+        });
+        row.append(go, fin);
+      }
+      const del = el("button", "grey", "🗑️");
+      del.type = "button";
+      del.addEventListener("click", () => {
+        if (!confirm("Supprimer le projet « " + x.titre + " » ?")) return;
+        saveJSON(projectsKey(activeId), loadProjects(activeId).filter((z) => z.id !== x.id));
+        renderProjects();
+      });
+      row.append(del);
+      c.append(row);
+      box.append(c);
+    }
+  }
+  function openProjects() {
+    if (!currentProfile()) {
+      openWho();
+      return;
+    }
+    renderProjects();
+    $("projectDialog").showModal();
+  }
+  const resultsKey = (id) => "leo_results_v58_" + id;
+  const MATIERES = { maths: "🔢 Maths", francais: "📝 Français", anglais: "🇬🇧 Anglais", sciences: "🔬 Sciences", histoire: "🏛️ Histoire", geographie: "🌍 Géographie", logique: "🧩 Logique", autre: "⭐ Autre" };
+  function saveResults(list) {
+    if (!activeId || !list.length) return;
+    let r = readJSON(resultsKey(activeId), []);
+    if (!Array.isArray(r)) r = [];
+    for (const raw of list) {
+      const [m0, n0, ok0] = String(raw).split("|").map((x) => (x || "").trim());
+      const m = norm(m0).replace(/[^a-z]/g, "");
+      const key = Object.keys(MATIERES).find((k) => m.startsWith(k.slice(0, 4))) || "autre";
+      const ok = /^(ok|oui|juste|vrai|1|reussi)/i.test(norm(ok0 || ""));
+      if (n0) r.push({ t: Date.now(), m: key, n: n0.slice(0, 40), ok });
+    }
+    saveJSON(resultsKey(activeId), r.slice(-1500));
+  }
+  function progressCard(profile, card) {
+    const r = readJSON(resultsKey(profile.id), []);
+    if (!Array.isArray(r) || !r.length) return;
+    const now = Date.now(), d30 = r.filter((x) => now - x.t < 30 * 864e5);
+    if (!d30.length) return;
+    const c = card("📈 Progrès par matière (30 derniers jours)");
+    const by = {};
+    for (const x of d30) (by[x.m] = by[x.m] || []).push(x);
+    for (const k of Object.keys(by).sort((a, b) => by[b].length - by[a].length)) {
+      const l = by[k], ok = l.filter((x) => x.ok).length, pct = Math.round(ok / l.length * 100);
+      const w1 = l.filter((x) => now - x.t < 7 * 864e5), w0 = l.filter((x) => now - x.t >= 7 * 864e5 && now - x.t < 14 * 864e5);
+      const p1 = w1.length ? w1.filter((x) => x.ok).length / w1.length : null, p0 = w0.length ? w0.filter((x) => x.ok).length / w0.length : null;
+      const trend = p1 !== null && p0 !== null ? p1 - p0 > 0.08 ? " ↗️" : p0 - p1 > 0.08 ? " ↘️" : " →" : "";
+      const row = el("div", "prow");
+      const bar = el("div", "pbar"), fill = el("div", "pfill");
+      fill.style.width = pct + "%";
+      fill.style.background = pct >= 75 ? "#22c55e" : pct >= 50 ? "#f59e0b" : "#ef4444";
+      bar.append(fill);
+      row.append(el("div", "plabel", MATIERES[k] + " · " + pct + " % juste" + trend + " · " + l.length + " exercice" + (l.length > 1 ? "s" : "")), bar);
+      const nn = {};
+      for (const x of l) {
+        const key = x.n.toLowerCase();
+        (nn[key] = nn[key] || { n: x.n, ok: 0, ko: 0 })[x.ok ? "ok" : "ko"]++;
+      }
+      const notions = Object.values(nn).filter((v) => v.ok + v.ko >= 2);
+      const good = notions.filter((v) => v.ok / (v.ok + v.ko) >= 0.75).map((v) => v.n), bad = notions.filter((v) => v.ok / (v.ok + v.ko) < 0.5).map((v) => v.n);
+      if (good.length) row.append(el("div", "pnote", "✅ Réussi : " + good.slice(0, 5).join(", ")));
+      if (bad.length) row.append(el("div", "pnote", "⚠️ À revoir : " + bad.slice(0, 5).join(", ")));
+      c.append(row);
+    }
+    c.append(el("div", "muted", "↗️ = mieux que la semaine d’avant. Léo note chaque exercice (juste du premier coup ou avec un indice = juste)."));
+  }
   function missionsPrompt(p) {
     const m = loadMissions(p.id);
     if (!m) return "";
@@ -1642,6 +1813,9 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     if (forbidden.length) L.push("Modes NON autorisés par les parents pour cet enfant : " + forbidden.map((x) => x.name).join(", ") + ". S’il en demande un, dis gentiment qu’il n’est pas activé et propose autre chose.");
     const mp = missionsPrompt(profile);
     if (mp) L.push(mp);
+    const pp = projectsPrompt(profile);
+    if (pp) L.push(pp);
+    L.push(`SUIVI (invisible pour l'enfant) : 1) Quand l'enfant répond à un exercice ou à une question d'apprentissage (devoirs, calcul, dictée, anglais, quiz scolaire), ajoute à la fin <res>matière|notion|ok</res> ou <res>matière|notion|ko</res> (ok = juste du premier coup ou après un indice ; ko = faux). Matière parmi : maths, francais, anglais, sciences, histoire, geographie, logique, autre. Notion courte et générale (ex : tables de 7, accord sujet-verbe, couleurs en anglais), jamais le calcul exact. 2) Quand vous avancez sur un PROJET qui dure plusieurs séances (invention, objet 3D, robot, expérience, histoire à deux, exposé…), ajoute à la fin <projet>{"titre":"nom court","etape":"ex : 3/6 dessin","resume":"ce qui est fait","prochaine":"la prochaine étape","fini":false}</projet> (fini:true quand il est terminé).`);
     if (profiles.length > 1) L.push("Enfants de la famille (pour le duel) : " + profiles.map((p) => `${p.name} (${p.age} ans, ${p.schoolClass})`).join(" ; ") + ".");
     L.push(memoryPrompt());
     const asked = readJSON(askedKey(profile.id), []);
@@ -2978,6 +3152,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       openMissions();
       return true;
     }
+    if (/^(montre|affiche|ouvre)( moi)? (mes |les )?projets?\b/.test(t)) {
+      openProjects();
+      return true;
+    }
     const mm = /\bmode (leo )?(prof|professeur|devoirs?|robot\w*|invent\w*|createur|3 ?d|cr[ea]a\w* 3d|scien\w*|english|anglais|missions?)\b/.exec(t);
     if (mm) {
       const k = mm[2], id = /^prof|^devoir/.test(k) ? "prof" : /^robot/.test(k) ? "robotique" : /^invent/.test(k) ? "inventeur" : /3 ?d|createur|crea/.test(k) ? "3d" : /^scien/.test(k) ? "science" : /english|anglais/.test(k) ? "english" : "missions";
@@ -3212,7 +3390,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
       if (early && !early.text) {
-        const m = raw.replace(/<(score|emotion|chrono|redis|mission)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        const m = raw.replace(/<(score|emotion|chrono|redis|mission|res|projet)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
         if (m) {
           const t = speechSource(cleanText(m[1])).trim();
           if (t.length >= 3) {
@@ -3288,7 +3466,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
-      let score = "", emo = "", claps = false, chrono = "", redis = "", missionDone = "";
+      let score = "", emo = "", claps = false, chrono = "", redis = "", missionDone = "", projet = "";
+      const results = [];
       const noScore = noMemo.replace(/<score>\s*([^<]{1,60}?)\s*<\/score>/gi, (_, x) => {
         score = x;
         return "";
@@ -3307,7 +3486,13 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       }).replace(/<mission>\s*(\d)\s*<\/mission>/gi, (_, x) => {
         missionDone = x;
         return "";
-      });
+      }).replace(/<res>\s*([^<]{3,100}?)\s*<\/res>/gi, (_, x) => {
+        results.push(x);
+        return "";
+      }).replace(/<projet>([\s\S]*?)<\/projet>/gi, (_, x) => {
+        projet = x;
+        return "";
+      }).replace(/<projet>[\s\S]*$/i, "");
       const { text: noSujet, sujet } = extractSujet(noScore);
       const { text: withMarks, blocks } = extractBlocks(noSujet);
       const { text: noAscii, hadAscii } = stripAsciiArt(withMarks);
@@ -3333,6 +3518,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (chrono) chronoTag(chrono);
       if (claps) startClapsAfterSpeech();
       if (missionDone) setTimeout(() => completeMission(missionDone, "léo"), 0);
+      saveResults(results);
+      if (projet) upsertProject(projet);
       R.expectEn = redis ? { target: redis, until: Date.now() + 9e4 } : null;
       stickBottom = false;
       showTop(bubble);
@@ -3396,6 +3583,12 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       for (const x of mm.list) cm.append(el("div", null, (x.done ? "✅ " : "⬜ ") + x.titre + (x.done && x.doneAt ? " — " + new Date(x.doneAt).toLocaleDateString("fr-FR", { weekday: "long" }) + (x.how === "léo" ? " (racontée à Léo)" : "") : "")));
       const bd = readJSON(badgesKey(profile.id), { counts: {}, total: 0, weeks: [] });
       if (bd.total) cm.append(el("div", "muted", "Badges : " + Object.keys(bd.counts).map((k) => BADGES[k][0] + "×" + bd.counts[k]).join(" ") + " · " + bd.total + " mission" + (bd.total > 1 ? "s" : "") + " réussie" + (bd.total > 1 ? "s" : "") + " en tout"));
+    }
+    progressCard(profile, card);
+    const pj = loadProjects(profile.id);
+    if (pj.length) {
+      const cp = card("📁 Projets");
+      for (const x of pj.slice(0, 6)) cp.append(el("div", null, (x.fini ? "✅ " : "🛠️ ") + x.titre + (x.etape ? " — " + x.etape : "") + (!x.fini && x.prochaine ? " → " + x.prochaine : "")));
     }
     let st = readJSON(statsKey(profile.id), []);
     if (!Array.isArray(st)) st = [];
@@ -3653,7 +3846,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const p = currentProfile();
     if (!p) return;
     if (!confirm("Effacer tout l’historique de " + p.name + " (conversations, résumés de séances, questions de jeu, records) ?\nCe que Léo a retenu (points forts, difficultés…) est gardé : utilise « Vider la mémoire » pour l’effacer aussi.")) return;
-    for (const k of [historyKey(p.id), unsumKey(p.id), sessionsKey(p.id), topicsKey(p.id), statsKey(p.id), alertsKey(p.id), askedKey(p.id), recordKey(p.id), modeKey(p.id), "leo_mailed_v22_" + p.id]) {
+    for (const k of [resultsKey(p.id), historyKey(p.id), unsumKey(p.id), sessionsKey(p.id), topicsKey(p.id), statsKey(p.id), alertsKey(p.id), askedKey(p.id), recordKey(p.id), modeKey(p.id), "leo_mailed_v22_" + p.id]) {
       try {
         localStorage.removeItem(k);
       } catch {
@@ -4740,7 +4933,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     R.questionUntil = Date.now() + 8e3;
     rob("robotHeard").textContent = "";
     closePanel();
-    const hello = "Salut " + p.name + " ! Qu’est-ce qu’on fait aujourd’hui ?";
+    const hint = projectHint(p);
+    const hello = "Salut " + p.name + " !" + (hint || " Qu’est-ce qu’on fait aujourd’hui ?");
     const sub = rob("robotSub");
     sub.replaceChildren();
     sub.append(hello);
@@ -4785,6 +4979,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   });
   menuDo("mModes", () => openModes());
   menuDo("mMissions", () => openMissions());
+  menuDo("mProjects", () => openProjects());
   $("missionsBtn").addEventListener("click", () => openMissions());
   rob("robotMode").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -5713,7 +5908,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (first) {
         hfSetMode("wake");
         const soundOk = !VO.ctx || VO.ctx.state === "running";
-        if (currentProfile() && !busy && (!auto || soundOk)) hfAnswerShort("Je t’écoute ! Dis « Léo » quand tu veux me parler.");
+        if (currentProfile() && !busy && (!auto || soundOk)) hfAnswerShort("Je t’écoute !" + (projectHint(currentProfile()) || " Dis « Léo » quand tu veux me parler."));
       }
       return true;
     });
