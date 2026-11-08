@@ -219,6 +219,36 @@
   .nogap .row > * + *, .nogap .dialog-actions > * + *, .nogap #toolbar > * + *, .nogap .top-actions > * + *, .nogap #input-area > * + *, .nogap header > * + *, .nogap .sheet-foot > * + *, .nogap .two > * + * { margin-left: 8px; }
   .nogap .two { display: flex; } .nogap .two > * { flex: 1; }
   .nogap .games button { margin: 4px; }
+
+  /* ---------- Mains libres + test du micro (v33) ---------- */
+  #robot .rtop .rright { display: flex; }
+  #robot .rtop .rright button { margin-left: 8px; }
+  #robotHands.on { background: #16a34a; box-shadow: 0 0 0 3px #16a34a55; }
+  #hfTap { display: none; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 5; background: rgba(2,6,23,.78); color: #fff; font-size: 22px; line-height: 1.4; padding: 30px; border-radius: 0; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  #hfTap.show { display: flex; }
+  #hfTap .big { font-size: 64px; margin-bottom: 12px; }
+  #micTest { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 300; background: #0b1220; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #micTest.open { display: block; }
+  .mtbox { max-width: 720px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top)) 16px 40px; color: #e2e8f0; }
+  .mthead { display: flex; justify-content: space-between; align-items: center; }
+  .mthead h2 { margin: 0; font-size: 22px; }
+  .mthead button { width: 42px; height: 42px; border-radius: 12px; background: #334155; }
+  #micTest h3 { font-size: 16px; margin: 18px 0 8px; color: #93c5fd; }
+  .mtlist { list-style: none; padding: 0; margin: 0; font-size: 14px; }
+  .mtlist li { padding: 5px 0; border-bottom: 1px solid #1e293b; }
+  .mtlist li.c-bad b { color: #fca5a5; } .mtlist li.c-ok b { color: #86efac; } .mtlist li.c-warn b { color: #fcd34d; }
+  .mtbig { width: 100%; height: 56px; font-size: 18px; border-radius: 14px; }
+  .mtres { margin: 8px 0; font-size: 15px; line-height: 1.4; }
+  .mtres.ok { color: #86efac; } .mtres.bad { color: #fca5a5; }
+  .meter { position: relative; height: 34px; background: #1e293b; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+  #mtBar { height: 100%; width: 0; background: #3b82f6; }
+  #mtBar.loud { background: #22c55e; }
+  #mtThr { position: absolute; top: 0; bottom: 0; width: 2px; background: #fbbf24; }
+  .mtbtns button { display: block; width: 100%; margin: 8px 0; height: 50px; border-radius: 12px; font-size: 16px; background: #1d4ed8; }
+  .mtbtns.dis button { opacity: .4; pointer-events: none; }
+  .mtlog { font-size: 14px; padding-left: 18px; margin: 6px 0; }
+  .mtlog li { margin: 4px 0; }
+  #mtReport { width: 100%; font-size: 11px; background: #020617; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; padding: 8px; box-sizing: border-box; }
 </style>
 </head>
 <body>
@@ -244,8 +274,12 @@
   <div class="rtop">
     <button type="button" id="robotExit" aria-label="Revenir à la conversation">💬</button>
     <button type="button" id="robotWho" class="who" aria-label="Changer d'enfant"><span id="robotName">Qui es-tu ?</span> ▾</button>
-    <button type="button" id="robotSettings" aria-label="Espace parent">⚙️</button>
+    <div class="rright">
+      <button type="button" id="robotHands" aria-label="Mains libres : Léo écoute tout seul">👂</button>
+      <button type="button" id="robotSettings" aria-label="Espace parent">⚙️</button>
+    </div>
   </div>
+  <button type="button" id="hfTap" aria-label="Allumer l'oreille de Léo"><span class="big">👆</span><span id="hfTapText">Touche l’écran une fois : ensuite, plus besoin de toucher !</span></button>
   <form id="robotBar" class="rbar" autocomplete="off">
     <input id="robotInput" type="text" enterkeyhint="send" placeholder="Écris à Léo…" aria-label="Message à Léo">
     <button type="submit" id="robotSend" aria-label="Envoyer">➤</button>
@@ -358,7 +392,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v32</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v33</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -437,6 +471,11 @@
       </section>
 
       <section data-pane="voix">
+        <div class="card">
+          <h3>🎙️ Micro et mains libres</h3>
+          <p class="note">Vérifie si Léo peut entendre sur cet appareil, et s’il peut écouter tout seul quand on dit « Léo ! ».</p>
+          <button type="button" id="openMicTest" class="small-btn">🎙️ Ouvrir le test du micro</button>
+        </div>
         <div class="card">
           <h3>🔊 Voix de Léo</h3>
           <label>Type de voix <select id="voiceMode">
@@ -527,6 +566,32 @@
   });
 })();
 </script>
+<div id="micTest" role="dialog" aria-label="Test du micro">
+  <div class="mtbox">
+    <div class="mthead"><h2>🎙️ Test du micro</h2><button type="button" id="mtClose" aria-label="Fermer">✖</button></div>
+    <p class="note">À faire dans Safari (pas depuis l’icône de l’écran d’accueil). Ce test ne garde aucun enregistrement.</p>
+    <h3>1. Ce que cet appareil sait faire</h3>
+    <ul id="mtCaps" class="mtlist"></ul>
+    <h3>2. Accès au micro</h3>
+    <button type="button" id="mtStart" class="mtbig">▶️ Démarrer le test du micro</button>
+    <div id="mtAccess" class="mtres"></div>
+    <div class="meter"><div id="mtBar"></div><div id="mtThr"></div></div>
+    <div id="mtHear" class="mtres"></div>
+    <div id="mtTech" class="note"></div>
+    <h3>3. Essais</h3>
+    <div id="mtBtns" class="mtbtns dis">
+      <button type="button" id="mtRec">⏺️ Enregistrer 3 s puis réécouter</button>
+      <button type="button" id="mtStt">📝 Dire une phrase → texte</button>
+      <button type="button" id="mtEcho">🔊 Micro ouvert + voix de Léo</button>
+      <button type="button" id="mtWake">👂 Écoute continue + mot « Léo »</button>
+    </div>
+    <div id="mtOut" class="mtres"></div>
+    <ol id="mtLog" class="mtlog"></ol>
+    <h3>4. Rapport (à m’envoyer en capture)</h3>
+    <textarea id="mtReport" readonly rows="8"></textarea>
+    <button type="button" id="mtCopy" class="small-btn grey">📋 Copier le rapport</button>
+  </div>
+</div>
 <script>
 /* Code compilé pour fonctionner aussi sur les anciens iPad et iPhone (iOS 11 et plus) */
 var __defProp = Object.defineProperty;
@@ -2771,6 +2836,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       return "speaking";
     }
     if (R.awaitingVoice && now < R.awaitingVoice) return "thinking";
+    if (HF.on && !HF.testOnly && Mic.live && HF.mode === "convo") return "listening";
     if (now < R.happyUntil) return "happy";
     if (now < R.excitedUntil) return "excited";
     if (now < R.questionUntil) return "question";
@@ -2845,7 +2911,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       if (R.startedSpeech && now - R.lastLoud > 1300) stopListening(false);
       else if (!R.startedSpeech && now - R.recStart > 7e3) stopListening(true);
       else if (now - R.recStart > 15e3) stopListening(false);
-    }
+    } else if (HF.on && Mic.live) rob("ring").setAttribute("r", (170 + Math.min(1, Mic.level * 6) * 22).toFixed(1));
     requestAnimationFrame(robotFrame);
   }
   function blobToBase64(blob) {
@@ -3079,7 +3145,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     sub.replaceChildren();
     const t = textOnly(reply);
     if (t) renderRich(sub, t.length > 260 ? t.slice(0, 257) + "…" : t);
-    robotStatus(CAN_RECORD ? "Appuie sur 🎤 pour répondre." : micHelp());
+    if (HF.on) robotStatus("…");
+    else robotStatus(CAN_RECORD ? "Appuie sur 🎤 pour répondre." : micHelp());
     robotPanel(blocks);
   }
   function robotPanel(blocks) {
@@ -3116,6 +3183,18 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       return;
     }
     if (busy) return;
+    if (HF.on && Mic.live) {
+      if (speakingNow()) stopSpeaking();
+      R.awaitingVoice = 0;
+      hfReset();
+      HF.muteUntil = Date.now() + 250;
+      hfSetMode("convo");
+      return;
+    }
+    if (hfWanted() && !HF.on) {
+      hfActivate();
+      return;
+    }
     if (speakingNow()) stopSpeaking();
     if (!CAN_RECORD) {
       robotStatus(micHelp());
@@ -3139,6 +3218,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       rob("robotName").textContent = p ? p.name : "Qui es-tu ?";
       robotStatus(p ? CAN_RECORD ? "Appuie sur 🎤 pour me parler !" : micHelp() : "");
       if (!CAN_RECORD) showKeyboardFallback();
+      if (hfWanted() && !HF.on) hfAskTap();
       if (!p) openWho();
       R.lastActivity = Date.now();
       try {
@@ -3148,6 +3228,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       requestAnimationFrame(robotFrame);
     } else {
       if (R.recording) stopListening(true);
+      if (HF.on) {
+        HF.on = false;
+        hfReset();
+        if (!MT.open) micStop();
+      }
+      rob("hfTap").classList.remove("show");
       try {
         if (R.wakeLock) await R.wakeLock.release();
       } catch (e) {
@@ -3240,7 +3326,10 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   rob("robotExit").addEventListener("click", () => setRobot(false));
   rob("robotSettings").addEventListener("click", () => openSettings());
   rob("robotPanelClose").addEventListener("click", closePanel);
-  $("robotBtn").addEventListener("click", () => setRobot(true));
+  $("robotBtn").addEventListener("click", () => {
+    setRobot(true);
+    if (hfWanted()) hfActivate();
+  });
   document.addEventListener("visibilitychange", async () => {
     if (document.visibilityState === "visible" && R.on && navigator.wakeLock) {
       try {
@@ -3249,6 +3338,803 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       }
     }
   });
+  const HF_KEY = "leo_handsfree_v33", HF_DAY_KEY = "leo_hf_day_v33";
+  const Mic = {
+    ctx: null,
+    stream: null,
+    src: null,
+    proc: null,
+    live: false,
+    starting: null,
+    rate: 0,
+    blocks: 0,
+    zeroBlocks: 0,
+    level: 0,
+    peak: 0,
+    listeners: [],
+    error: "",
+    errorName: "",
+    ctxKind: "",
+    repaired: false,
+    lastBlockAt: 0,
+    events: []
+  };
+  function micLog(t) {
+    Mic.events.push((/* @__PURE__ */ new Date()).toLocaleTimeString() + " " + t);
+    if (Mic.events.length > 40) Mic.events.shift();
+  }
+  function micTrack() {
+    return Mic.stream && Mic.stream.getAudioTracks ? Mic.stream.getAudioTracks()[0] : null;
+  }
+  function micErrorText(name) {
+    switch (name) {
+      case "NotAllowedError":
+      case "PermissionDeniedError":
+        return "Refusé. Sur iOS 12 : Réglages › Safari › « Accès à l’appareil photo et au micro » doit être activé. Vérifie aussi Réglages › Temps d’écran › Contenu et confidentialité › Micro. Puis recharge la page et réponds « Autoriser ».";
+      case "NotFoundError":
+      case "DevicesNotFoundError":
+        return "Aucun micro trouvé par Safari.";
+      case "NotReadableError":
+      case "TrackStartError":
+        return "Micro occupé : ferme Dictaphone, un appel ou une autre app qui utilise le micro, puis réessaie.";
+      case "SecurityError":
+        return "Bloqué pour raison de sécurité : la page doit être ouverte en https.";
+      case "NoGetUserMedia":
+        return navigator.standalone === true ? "Micro indisponible depuis l’icône de l’écran d’accueil (limite d’iOS 12). Ouvre Léo dans Safari." : /CriOS|FxiOS|EdgiOS/.test(navigator.userAgent) ? "Ce navigateur n’a pas accès au micro sur iOS 12 : ouvre Léo dans Safari." : "Ce navigateur ne donne pas accès au micro ici.";
+      case "NoAudioContext":
+        return "Traitement du son indisponible sur ce navigateur.";
+      default:
+        return "Erreur : " + name;
+    }
+  }
+  function micConnect() {
+    const ctx = Mic.ctx;
+    Mic.rate = ctx.sampleRate;
+    Mic.src = ctx.createMediaStreamSource(Mic.stream);
+    Mic.proc = ctx.createScriptProcessor(4096, 1, 1);
+    Mic.proc.onaudioprocess = (e) => {
+      const d = e.inputBuffer.getChannelData(0);
+      let s = 0, pk = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const x = d[i];
+        s += x * x;
+        const a = x < 0 ? -x : x;
+        if (a > pk) pk = a;
+      }
+      const rms = Math.sqrt(s / (d.length / 4));
+      Mic.blocks++;
+      Mic.lastBlockAt = Date.now();
+      if (pk === 0) Mic.zeroBlocks++;
+      else Mic.zeroBlocks = 0;
+      Mic.level = rms;
+      Mic.peak = Math.max(pk, Mic.peak * 0.92);
+      if (!Mic.listeners.length) return;
+      const copy = new Float32Array(d), dur = d.length / Mic.rate;
+      for (const f of Mic.listeners.slice()) {
+        try {
+          f(copy, rms, dur);
+        } catch (err) {
+          micLog("erreur écoute : " + err.message);
+        }
+      }
+    };
+    Mic.src.connect(Mic.proc);
+    Mic.proc.connect(ctx.destination);
+  }
+  function micDisconnect() {
+    try {
+      Mic.proc.onaudioprocess = null;
+      Mic.proc.disconnect();
+      Mic.src.disconnect();
+    } catch (e) {
+    }
+    try {
+      Mic.ctx.close();
+    } catch (e) {
+    }
+    Mic.proc = Mic.src = Mic.ctx = null;
+  }
+  function micStart() {
+    if (Mic.live) {
+      try {
+        if (Mic.ctx.state !== "running") Mic.ctx.resume();
+      } catch (e) {
+      }
+      return Promise.resolve(true);
+    }
+    if (Mic.starting) return Mic.starting;
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      Mic.errorName = "NoGetUserMedia";
+      Mic.error = micErrorText("NoGetUserMedia");
+      return Promise.resolve(false);
+    }
+    if (!C) {
+      Mic.errorName = "NoAudioContext";
+      Mic.error = micErrorText("NoAudioContext");
+      return Promise.resolve(false);
+    }
+    let ctx;
+    try {
+      ctx = new C();
+      Mic.ctxKind = window.AudioContext ? "AudioContext" : "webkitAudioContext";
+      try {
+        ctx.resume();
+      } catch (e) {
+      }
+    } catch (err) {
+      Mic.errorName = "NoAudioContext";
+      Mic.error = micErrorText("NoAudioContext");
+      return Promise.resolve(false);
+    }
+    micLog("demande d’accès au micro");
+    Mic.starting = navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      Mic.stream = stream;
+      Mic.ctx = ctx;
+      Mic.blocks = 0;
+      Mic.zeroBlocks = 0;
+      Mic.repaired = false;
+      micConnect();
+      Mic.live = true;
+      Mic.error = "";
+      Mic.errorName = "";
+      const t = micTrack();
+      if (t) {
+        t.onended = () => {
+          micLog("piste du micro terminée");
+          micLost();
+        };
+        t.onmute = () => micLog("micro coupé par le système");
+        t.onunmute = () => micLog("micro rétabli");
+      }
+      micLog("micro autorisé (" + Mic.ctxKind + ", " + Mic.rate + " Hz)");
+      setTimeout(micCheckSignal, 1800);
+      return true;
+    }, (err) => {
+      try {
+        ctx.close();
+      } catch (e) {
+      }
+      Mic.errorName = err && err.name || "Error";
+      Mic.error = micErrorText(Mic.errorName);
+      micLog("accès refusé : " + Mic.errorName);
+      return false;
+    }).then((r) => {
+      Mic.starting = null;
+      return r;
+    });
+    return Mic.starting;
+  }
+  function micCheckSignal() {
+    if (!Mic.live) return;
+    const silentAll = Mic.blocks === 0 || Mic.zeroBlocks >= Mic.blocks;
+    if (!silentAll) return;
+    if (Mic.repaired) {
+      micLog("toujours aucun son reçu après réparation");
+      return;
+    }
+    Mic.repaired = true;
+    micLog(Mic.blocks === 0 ? "aucun bloc de son reçu : réparation" : "son reçu vide : réparation");
+    try {
+      Mic.proc.onaudioprocess = null;
+      Mic.proc.disconnect();
+      Mic.src.disconnect();
+      Mic.ctx.close();
+    } catch (e) {
+    }
+    try {
+      const C = window.AudioContext || window.webkitAudioContext;
+      Mic.ctx = new C();
+      try {
+        Mic.ctx.resume();
+      } catch (e) {
+      }
+      Mic.blocks = 0;
+      Mic.zeroBlocks = 0;
+      micConnect();
+      setTimeout(micCheckSignal, 1800);
+    } catch (err) {
+      micLog("réparation impossible : " + err.message);
+    }
+  }
+  function micStop() {
+    try {
+      if (Mic.stream) Mic.stream.getTracks().forEach((t) => t.stop());
+    } catch (e) {
+    }
+    micDisconnect();
+    Mic.stream = null;
+    Mic.live = false;
+    Mic.level = 0;
+  }
+  function micLost() {
+    if (!Mic.live) return;
+    micStop();
+    if (HF.on) {
+      HF.on = false;
+      hfAskTap("Mon oreille s’est coupée. Touche l’écran une fois pour la rallumer.");
+    }
+  }
+  function micWakeOnTouch() {
+    try {
+      if (Mic.ctx && Mic.ctx.state !== "running") {
+        Mic.ctx.resume();
+        micLog("son relancé par un toucher");
+      }
+    } catch (e) {
+    }
+    if (R.on && hfWanted() && !HF.on && !Mic.starting && !Mic.errorName && !rob("robotWhoPanel").classList.contains("open")) hfActivate();
+  }
+  document.addEventListener("touchend", micWakeOnTouch, true);
+  document.addEventListener("click", micWakeOnTouch, true);
+  setInterval(() => {
+    if (!Mic.live) return;
+    const t = micTrack();
+    if (t && t.readyState === "ended") {
+      micLost();
+      return;
+    }
+    if (Mic.ctx && Mic.ctx.state !== "running") {
+      try {
+        Mic.ctx.resume();
+      } catch (e) {
+      }
+    }
+    if (HF.on && Date.now() - Mic.lastBlockAt > 4e3 && document.visibilityState === "visible") {
+      micLog("plus de son depuis 4 s");
+      if (Mic.ctx && Mic.ctx.state !== "running") hfAskTap("Touche l’écran une fois pour que je t’entende à nouveau.");
+    }
+  }, 2e3);
+  const HF = {
+    on: false,
+    testOnly: false,
+    mode: "wake",
+    capturing: false,
+    pre: [],
+    buf: [],
+    voiced: 0,
+    silentMs: 0,
+    capMs: 0,
+    speechMs: 0,
+    floor: 6e-3,
+    muteUntil: 0,
+    convoUntil: 0,
+    pending: false,
+    checks: [],
+    wasBlocked: false,
+    onTest: null
+  };
+  function hfWanted() {
+    return readJSON(HF_KEY, 0) === 1;
+  }
+  function hfThreshold() {
+    return Math.max(0.015, HF.floor * 3.2);
+  }
+  function hfReset() {
+    HF.capturing = false;
+    HF.buf = [];
+    HF.pre = [];
+    HF.voiced = 0;
+    HF.silentMs = 0;
+    HF.capMs = 0;
+    HF.speechMs = 0;
+  }
+  function hfIdleStatus() {
+    if (!HF.on || HF.testOnly || !R.on) return;
+    robotStatus(HF.mode === "convo" ? "👂 Je t’écoute… parle quand tu veux." : "👂 Dis « Léo ! » pour me parler.");
+  }
+  function hfSetMode(m) {
+    HF.mode = m;
+    if (m === "convo") HF.convoUntil = Date.now() + 25e3;
+    hfIdleStatus();
+  }
+  function hfOnBlock(d, rms, dur) {
+    if (!HF.on && !HF.testOnly) return;
+    const now = Date.now(), ms = dur * 1e3;
+    const blocked = !HF.testOnly && (busy || now < R.awaitingVoice || R.recording || !currentProfile() || rob("robotWhoPanel").classList.contains("open")) || speakingNow() || HF.pending;
+    if (blocked) {
+      if (HF.capturing) hfReset();
+      HF.muteUntil = now + 700;
+      if (HF.mode === "convo") HF.convoUntil = now + 25e3;
+      HF.wasBlocked = true;
+      return;
+    }
+    if (now < HF.muteUntil) {
+      HF.pre = [];
+      return;
+    }
+    if (HF.wasBlocked) {
+      HF.wasBlocked = false;
+      hfIdleStatus();
+    }
+    if (HF.mode === "convo" && now > HF.convoUntil && !HF.capturing) {
+      hfSetMode("wake");
+      if (HF.onTest) HF.onTest("⏳ 25 s sans parler : Léo attend à nouveau « Léo ! »");
+    }
+    const thr = hfThreshold();
+    if (!HF.capturing) {
+      HF.pre.push(d);
+      if (HF.pre.length > 4) HF.pre.shift();
+      if (rms > thr) {
+        if (++HF.voiced >= 2) {
+          HF.capturing = true;
+          HF.buf = HF.pre.slice();
+          HF.pre = [];
+          HF.capMs = HF.buf.length * ms;
+          HF.speechMs = 2 * ms;
+          HF.silentMs = 0;
+        }
+      } else {
+        HF.voiced = 0;
+        HF.floor = rms < HF.floor ? HF.floor * 0.9 + rms * 0.1 : HF.floor * 0.995 + Math.min(rms, 0.06) * 5e-3;
+      }
+      return;
+    }
+    HF.buf.push(d);
+    HF.capMs += ms;
+    if (rms > thr * 0.6) {
+      HF.silentMs = 0;
+      HF.speechMs += ms;
+    } else HF.silentMs += ms;
+    if (HF.silentMs >= (HF.mode === "wake" ? 700 : 1e3) || HF.capMs >= 12e3) hfFinish();
+  }
+  function hfDayCount(add) {
+    const day = (/* @__PURE__ */ new Date()).toDateString();
+    let o = readJSON(HF_DAY_KEY, null);
+    if (!o || o.d !== day) o = { d: day, n: 0 };
+    if (add) {
+      o.n++;
+      saveJSON(HF_DAY_KEY, o);
+    }
+    return o.n;
+  }
+  function hfFinish() {
+    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs;
+    hfReset();
+    if (speechMs < 300) return;
+    const now = Date.now();
+    HF.checks = HF.checks.filter((t) => now - t < 6e4);
+    if (HF.mode === "wake" && HF.checks.length >= 8) {
+      HF.floor = Math.min(0.05, HF.floor * 1.5);
+      if (HF.onTest) HF.onTest("🔇 Beaucoup de bruit : Léo devient moins sensible");
+      return;
+    }
+    if (HF.mode === "wake" && hfDayCount() >= 800) {
+      if (HF.onTest) HF.onTest("Limite du jour atteinte");
+      return;
+    }
+    HF.checks.push(now);
+    hfDayCount(true);
+    hfTranscribe(encodeWav(bufs, Mic.rate), capMs);
+  }
+  const HALLU_RE = /amara|sous-titr|merci d['’]avoir regard|abonnez|un enfant parle [àa] l[ée]o|pour ses devoirs ou pour jouer|^\W*$/i;
+  function findWake(text) {
+    const norm2 = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const words = String(text).split(/[\s,!.?;:…«»"]+/).filter(Boolean);
+    const idx = words.slice(0, 4).findIndex((w) => /^(leo|leon|leho|leyo|lheo|lio|leeo|leau)$/.test(norm2(w).replace(/['’]/g, "")));
+    if (idx < 0) return null;
+    return { rest: words.slice(idx + 1).join(" ").trim() };
+  }
+  async function hfTranscribe(blob, capMs) {
+    const mode = HF.mode, test = HF.testOnly, t0 = Date.now();
+    HF.pending = true;
+    if (!test && mode === "convo") {
+      R.awaitingVoice = Date.now() + 2e4;
+      robotStatus("Je réfléchis…");
+    }
+    let text = "";
+    try {
+      const audio = await blobToBase64(blob);
+      const response = await fetchWithTimeout(FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
+        body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose: mode === "wake" ? "wake" : "talk" })
+      }, 2e4);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(data.error || "erreur " + response.status);
+      text = String(data.text || "").trim();
+    } catch (err) {
+      HF.pending = false;
+      if (test) {
+        if (HF.onTest) HF.onTest("⚠️ " + (capMs / 1e3).toFixed(1) + " s de son → erreur serveur : " + friendlyError(err));
+        return;
+      }
+      if (mode === "convo") {
+        R.awaitingVoice = 0;
+        robotStatus("Oups, je n’ai pas réussi à t’entendre. Redis-le !");
+      }
+      return;
+    }
+    HF.pending = false;
+    const ms = Date.now() - t0;
+    if (HALLU_RE.test(text) || text.length < 2) {
+      if (test && HF.onTest) HF.onTest("… " + (capMs / 1e3).toFixed(1) + " s de son → rien de compréhensible");
+      if (!test && mode === "convo") {
+        R.awaitingVoice = 0;
+        hfIdleStatus();
+      }
+      return;
+    }
+    const w = findWake(text);
+    if (test) {
+      if (HF.onTest) HF.onTest("🗣️ « " + text + " » (" + (capMs / 1e3).toFixed(1) + " s, compris en " + (ms / 1e3).toFixed(1) + " s) → " + (w ? "✅ mot « Léo » reconnu" + (w.rest ? " · question : « " + w.rest + " »" : "") : mode === "convo" ? "💬 conversation (pas besoin de « Léo »)" : "❌ pas de « Léo » : ignoré"));
+      if (w || mode === "convo") hfSetMode("convo");
+      return;
+    }
+    if (mode === "wake") {
+      if (!w) return;
+      R.lastActivity = Date.now();
+      hfSetMode("convo");
+      if (w.rest.length >= 3 && !/^(tu es l[àa]|t['’]es l[àa]|r[ée]veille)/i.test(w.rest)) {
+        hfSend(w.rest);
+        return;
+      }
+      hfAnswerShort(["Oui ? Je t’écoute !", "Oui, je suis là !", "Je t’écoute !"][Math.floor(Math.random() * 3)]);
+      return;
+    }
+    const said = w ? w.rest : text;
+    R.lastActivity = Date.now();
+    if (!said) {
+      hfAnswerShort("Oui ? Je t’écoute !");
+      return;
+    }
+    if (/^(au revoir|bonne nuit|[àa] plus|c['’]est fini|on arr[êe]te|chut|tais[- ]toi)\b/i.test(said)) {
+      hfAnswerShort("D’accord ! Dis « Léo » quand tu veux me parler.");
+      hfSetMode("wake");
+      return;
+    }
+    if (isRepeat(said) && R.lastReply) {
+      rob("robotHeard").textContent = "🗣️ " + said;
+      hfAnswerShort(null);
+      return;
+    }
+    hfSend(said);
+  }
+  function hfAnswerShort(t) {
+    R.awaitingVoice = Date.now() + 8e3;
+    R.questionUntil = Date.now() + 6e3;
+    if (t === null) {
+      robotStatus("Je répète…");
+      speak(speechSource(R.lastReply));
+      return;
+    }
+    robotStatus(t);
+    speak(t);
+  }
+  async function hfSend(text) {
+    if (!currentProfile()) {
+      R.awaitingVoice = 0;
+      openWho();
+      return;
+    }
+    closePanel();
+    rob("robotSub").replaceChildren();
+    rob("robotHeard").textContent = "🗣️ " + text;
+    robotStatus("Je réfléchis…");
+    input.value = text;
+    lastInputWasVoice = true;
+    await sendMessage();
+  }
+  function hfAskTap(msg) {
+    const o = rob("hfTap");
+    rob("hfTapText").textContent = msg || "Touche l’écran une fois : ensuite, plus besoin de toucher !";
+    if (R.on) o.classList.add("show");
+    rob("robotHands").classList.remove("on");
+  }
+  function hfActivate() {
+    unlockSpeech();
+    rob("hfTap").classList.remove("show");
+    robotStatus("J’ouvre mon oreille…");
+    return micStart().then((ok) => {
+      if (!ok) {
+        HF.on = false;
+        rob("robotHands").classList.remove("on");
+        robotStatus("🎤 " + Mic.error);
+        showKeyboardFallback();
+        return false;
+      }
+      try {
+        localStorage.setItem(HF_KEY, "1");
+      } catch (e) {
+      }
+      if (Mic.listeners.indexOf(hfOnBlock) < 0) Mic.listeners.push(hfOnBlock);
+      const first = !HF.on;
+      HF.on = true;
+      hfReset();
+      rob("robotHands").classList.add("on");
+      if (first) {
+        hfSetMode("wake");
+        if (currentProfile() && !busy) hfAnswerShort("Je t’écoute ! Dis « Léo » quand tu veux me parler.");
+      }
+      return true;
+    });
+  }
+  function hfDisable() {
+    HF.on = false;
+    hfReset();
+    try {
+      localStorage.setItem(HF_KEY, "0");
+    } catch (e) {
+    }
+    rob("robotHands").classList.remove("on");
+    rob("hfTap").classList.remove("show");
+    if (!MT.open) micStop();
+    robotStatus(CAN_RECORD ? "Oreille éteinte. Appuie sur 🎤 pour me parler." : micHelp());
+  }
+  rob("robotHands").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (HF.on) hfDisable();
+    else hfActivate();
+  });
+  rob("hfTap").addEventListener("click", (e) => {
+    e.stopPropagation();
+    hfActivate();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || !HF.on) return;
+    setTimeout(() => {
+      const t = micTrack();
+      if (!Mic.live || t && t.readyState === "ended") {
+        micLost();
+        return;
+      }
+      if (Mic.ctx && Mic.ctx.state !== "running") hfAskTap("Touche l’écran une fois pour que je t’entende à nouveau.");
+    }, 700);
+  });
+  const MT = { open: false, raf: 0, heardMs: 0, lastT: 0, results: {}, wakeOn: false };
+  const mt = (id) => document.getElementById(id);
+  function mtCaps() {
+    const ua = navigator.userAgent, m = ua.match(/OS (\d+)_(\d+)(?:_(\d+))?/);
+    const C = window.AudioContext || window.webkitAudioContext;
+    const otherBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+    const secure = window.isSecureContext !== void 0 ? window.isSecureContext : location.protocol === "https:";
+    return [
+      ["Appareil", m ? "iOS " + m[1] + "." + m[2] + (m[3] ? "." + m[3] : "") : (ua.match(/\(([^)]+)\)/) || [, ""])[1].slice(0, 40), "info"],
+      ["Ouvert dans Safari (pas l’icône)", navigator.standalone === true ? "non : depuis l’icône → pas de micro sur iOS 12" : otherBrowser ? "non : autre navigateur → ouvre Safari" : "oui", navigator.standalone === true || otherBrowser ? "bad" : "ok"],
+      ["Page sécurisée (https)", secure ? "oui" : "non", secure ? "ok" : "bad"],
+      ["Accès au micro (getUserMedia)", navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? "présent" : "absent", navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? "ok" : "bad"],
+      ["Traitement du son", C ? window.AudioContext ? "AudioContext" : "webkitAudioContext (ancien, compatible)" : "absent", C ? "ok" : "bad"],
+      ["Enregistreur moderne (MediaRecorder)", window.MediaRecorder ? "présent" : "absent (normal sur iOS 12 : Léo enregistre en WAV)", "info"],
+      ["Reconnaissance vocale du navigateur", window.SpeechRecognition || window.webkitSpeechRecognition ? "présente" : "absente (normal sur iOS 12 : Léo utilise le serveur)", "info"],
+      ["Voix du navigateur (secours)", window.speechSynthesis ? "présente" : "absente", window.speechSynthesis ? "ok" : "warn"],
+      ["WebAssembly (détecteur local futur)", typeof WebAssembly === "object" ? "présent" : "absent", "info"],
+      ["Garder l’écran allumé (Wake Lock)", navigator.wakeLock ? "présent" : "absent → Réglages › Luminosité et affichage › Verrouillage automatique : Jamais", navigator.wakeLock ? "ok" : "warn"]
+    ];
+  }
+  function mtRender() {
+    const ul = mt("mtCaps");
+    ul.replaceChildren();
+    for (const [k, v, s] of mtCaps()) {
+      const li = el("li", "c-" + s);
+      li.append(el("b", null, (s === "ok" ? "✅ " : s === "bad" ? "❌ " : s === "warn" ? "⚠️ " : "ℹ️ ") + k + " : "), v);
+      ul.append(li);
+    }
+    mtAccess();
+    mtReport();
+  }
+  function mtAccess() {
+    const a = mt("mtAccess");
+    if (Mic.live) {
+      a.className = "mtres ok";
+      a.textContent = "✅ Micro autorisé et ouvert.";
+    } else if (Mic.starting) {
+      a.className = "mtres";
+      a.textContent = "⏳ Safari demande l’autorisation… réponds « Autoriser ».";
+    } else if (Mic.errorName) {
+      a.className = "mtres bad";
+      a.textContent = "❌ " + Mic.error + " (" + Mic.errorName + ")";
+    } else {
+      a.className = "mtres";
+      a.textContent = "Pas encore testé : appuie sur « Démarrer ».";
+    }
+    mt("mtBtns").classList.toggle("dis", !Mic.live);
+  }
+  function mtFrame(ts) {
+    if (!MT.open) return;
+    const dt = MT.lastT ? ts - MT.lastT : 16;
+    MT.lastT = ts;
+    const lv = Mic.live ? Mic.level : 0, thr = hfThreshold();
+    mt("mtBar").style.width = Math.min(100, Math.sqrt(lv) * 160).toFixed(1) + "%";
+    mt("mtBar").className = lv > thr ? "loud" : "";
+    mt("mtThr").style.left = Math.min(100, Math.sqrt(thr) * 160).toFixed(1) + "%";
+    if (Mic.live && lv > thr) MT.heardMs += dt;
+    const h = mt("mtHear");
+    if (!Mic.live) {
+      h.textContent = "";
+      h.className = "mtres";
+    } else if (Mic.zeroBlocks > 25) {
+      h.className = "mtres bad";
+      h.textContent = "❌ Le micro est ouvert mais n’envoie aucun son. Ferme les autres apps, recharge la page et réessaie.";
+      MT.results.signal = "nul";
+    } else if (MT.heardMs > 300) {
+      h.className = "mtres ok";
+      h.textContent = "✅ Léo t’entend ! (la barre bouge quand tu parles)";
+      MT.results.signal = "ok";
+    } else {
+      h.className = "mtres";
+      h.textContent = "🗣️ Parle ou tape dans tes mains près de l’iPad : la barre doit bouger.";
+    }
+    const t = micTrack();
+    mt("mtTech").textContent = Mic.live ? "".concat(Mic.ctxKind, " · ").concat(Mic.ctx ? Mic.ctx.state : "?", " · ").concat(Mic.rate, " Hz · blocs de son reçus : ").concat(Mic.blocks, " · piste : ").concat(t ? t.readyState + (t.muted ? " (coupée)" : "") : "?", " · bruit de fond : ").concat(HF.floor.toFixed(4), " · seuil voix : ").concat(thr.toFixed(4)).concat(Mic.repaired ? " · réparé" : "") : "";
+    MT.raf = requestAnimationFrame(mtFrame);
+  }
+  function mtOut(t, cls) {
+    const o = mt("mtOut");
+    o.textContent = t;
+    o.className = "mtres " + (cls || "");
+    mtReport();
+  }
+  function mtLog(t) {
+    const li = el("li", null, (/* @__PURE__ */ new Date()).toLocaleTimeString() + " — " + t);
+    mt("mtLog").prepend(li);
+    while (mt("mtLog").children.length > 30) mt("mtLog").lastChild.remove();
+    mtReport();
+  }
+  function mtCollect(sec) {
+    return new Promise((res) => {
+      const bufs = [];
+      let got = 0;
+      const f = (d, rms, dur) => {
+        bufs.push(d);
+        got += dur;
+        if (got >= sec) {
+          Mic.listeners.splice(Mic.listeners.indexOf(f), 1);
+          res(bufs);
+        }
+      };
+      Mic.listeners.push(f);
+      setTimeout(() => {
+        const i = Mic.listeners.indexOf(f);
+        if (i >= 0) {
+          Mic.listeners.splice(i, 1);
+          res(bufs);
+        }
+      }, sec * 1e3 + 2500);
+    });
+  }
+  function mtReport() {
+    const lines2 = ["Rapport test micro Léo — " + (/* @__PURE__ */ new Date()).toLocaleString(), navigator.userAgent];
+    for (const [k, v, s] of mtCaps()) lines2.push((s === "ok" ? "[OK] " : s === "bad" ? "[KO] " : s === "warn" ? "[!] " : "[i] ") + k + " : " + v);
+    lines2.push("Accès micro : " + (Mic.live ? "autorisé" : Mic.errorName ? "refusé/erreur " + Mic.errorName : "non testé"));
+    if (Mic.live) lines2.push("Son : ".concat(Mic.ctxKind, " ").concat(Mic.rate, " Hz, état ").concat(Mic.ctx && Mic.ctx.state, ", blocs ").concat(Mic.blocks, ", vides ").concat(Mic.zeroBlocks).concat(Mic.repaired ? ", réparé" : ""));
+    for (const k in MT.results) lines2.push("Essai " + k + " : " + MT.results[k]);
+    lines2.push("Journal : " + Mic.events.slice(-12).join(" | "));
+    mt("mtReport").value = lines2.join("\n");
+  }
+  function openMicTest() {
+    MT.open = true;
+    MT.heardMs = 0;
+    MT.lastT = 0;
+    mt("micTest").classList.add("open");
+    mtRender();
+    cancelAnimationFrame(MT.raf);
+    MT.raf = requestAnimationFrame(mtFrame);
+  }
+  function closeMicTest() {
+    MT.open = false;
+    cancelAnimationFrame(MT.raf);
+    mt("micTest").classList.remove("open");
+    if (MT.wakeOn) mtWakeToggle();
+    if (!HF.on) micStop();
+  }
+  mt("mtClose").addEventListener("click", closeMicTest);
+  mt("mtStart").addEventListener("click", () => {
+    unlockSpeech();
+    const p = micStart();
+    mtAccess();
+    p.then((ok) => {
+      mtAccess();
+      mtReport();
+      MT.results.acces = ok ? "autorisé" : Mic.errorName;
+      if (!ok) mtOut("Sans micro direct : utilise ⌨️ puis le 🎤 du clavier Apple (dictée). Ce n’est pas mains libres.", "bad");
+    });
+  });
+  mt("mtRec").addEventListener("click", async () => {
+    if (!Mic.live) return;
+    unlockSpeech();
+    mtOut("⏺️ Parle pendant 3 secondes…");
+    const bufs = await mtCollect(3);
+    const blob = encodeWav(bufs, Mic.rate);
+    const url = URL.createObjectURL(blob), a = new Audio(url);
+    mtOut("▶️ Réécoute : tu dois entendre ta voix normalement (pas aiguë, pas hachée).");
+    a.onended = () => mtOut("Tu t’es bien entendu ? Si la voix était aiguë, grave ou hachée, envoie-moi le rapport.");
+    a.play().catch((err) => mtOut("Réécoute impossible : " + err.name, "bad"));
+    MT.results.enregistrement = bufs.length ? (bufs.reduce((s, b) => s + b.length, 0) / Mic.rate).toFixed(1) + " s" : "rien reçu";
+  });
+  mt("mtStt").addEventListener("click", async () => {
+    if (!Mic.live) return;
+    mtOut("🗣️ Dis une phrase pendant 4 secondes (ex. « Léo, combien font 7 fois 8 ? »)…");
+    const bufs = await mtCollect(4);
+    mtOut("⏳ Le serveur écoute…");
+    const t0 = Date.now();
+    try {
+      const audio = await blobToBase64(encodeWav(bufs, Mic.rate));
+      const response = await fetchWithTimeout(FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
+        body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose: "talk" })
+      }, 25e3);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(data.error || "erreur " + response.status);
+      const text = String(data.text || "").trim();
+      const w = findWake(text);
+      MT.results.comprehension = "« " + text + " » en " + ((Date.now() - t0) / 1e3).toFixed(1) + " s" + (w ? " (mot Léo reconnu)" : "");
+      mtOut(text ? "✅ Compris : « " + text + " » (" + ((Date.now() - t0) / 1e3).toFixed(1) + " s)" + (w ? " — mot « Léo » reconnu" : "") : "❌ Rien compris : parle plus fort ou plus près.", text ? "ok" : "bad");
+    } catch (err) {
+      MT.results.comprehension = "erreur " + friendlyError(err);
+      mtOut("❌ Erreur serveur : " + friendlyError(err), "bad");
+    }
+  });
+  mt("mtEcho").addEventListener("click", async () => {
+    if (!Mic.live) return;
+    unlockSpeech();
+    const b0 = Mic.blocks;
+    let maxLv = 0, sawSpeak = false;
+    const f = (d, rms) => {
+      if (speakingNow()) {
+        sawSpeak = true;
+        if (rms > maxLv) maxLv = rms;
+      }
+    };
+    Mic.listeners.push(f);
+    mtOut("🔊 Léo parle avec le micro ouvert…");
+    await speak("Bonjour ! Je suis Léo. Je vérifie que je peux parler et écouter en même temps.");
+    await new Promise((r) => setTimeout(r, 400));
+    Mic.listeners.splice(Mic.listeners.indexOf(f), 1);
+    const t = micTrack(), alive = Mic.live && t && t.readyState === "live" && Mic.blocks > b0 + 5;
+    MT.results.voix_et_micro = (sawSpeak ? "voix jouée" : "voix non détectée") + ", micro " + (alive ? "toujours actif" : "COUPÉ") + ", niveau max pendant la voix " + maxLv.toFixed(3);
+    mtOut((alive ? "✅ Le micro reste actif pendant que Léo parle." : "❌ Le micro s’est coupé pendant la voix de Léo.") + " La voix était-elle aussi forte que d’habitude ? (Note-le : avec le micro ouvert, iOS baisse parfois le volume.)", alive ? "ok" : "bad");
+  });
+  function mtWakeToggle() {
+    if (MT.wakeOn) {
+      MT.wakeOn = false;
+      HF.testOnly = false;
+      HF.onTest = null;
+      hfReset();
+      if (!HF.on) {
+        const i = Mic.listeners.indexOf(hfOnBlock);
+        if (i >= 0) Mic.listeners.splice(i, 1);
+      }
+      mt("mtWake").textContent = "👂 Écoute continue + mot « Léo »";
+      return;
+    }
+    if (!Mic.live) return;
+    MT.wakeOn = true;
+    HF.testOnly = true;
+    hfReset();
+    HF.mode = "wake";
+    HF.onTest = (t) => {
+      mtLog(t);
+      MT.results.ecoute_continue = (MT.results.ecoute_continue ? "" : "") + t.slice(0, 120);
+    };
+    if (Mic.listeners.indexOf(hfOnBlock) < 0) Mic.listeners.push(hfOnBlock);
+    mt("mtWake").textContent = "⏹ Arrêter l’écoute continue";
+    mtLog("👂 Écoute continue démarrée : dis « Léo ! » puis une question. Sans « Léo », rien ne doit se passer.");
+  }
+  mt("mtWake").addEventListener("click", mtWakeToggle);
+  mt("mtCopy").addEventListener("click", () => {
+    mtReport();
+    const ta = mt("mtReport");
+    ta.removeAttribute("readonly");
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (e) {
+    }
+    ta.setAttribute("readonly", "");
+    ta.blur();
+    mt("mtCopy").textContent = ok ? "✅ Copié" : "Fais une capture d’écran du rapport";
+  });
+  $("openMicTest").addEventListener("click", () => {
+    try {
+      $("settingsDialog").close();
+    } catch (e) {
+    }
+    openMicTest();
+  });
+  if (/[?&]mictest=1/.test(location.search)) setTimeout(openMicTest, 300);
   renderProfiles();
   let savedId = null;
   try {
