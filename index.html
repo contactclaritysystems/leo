@@ -566,7 +566,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v55</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v56</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1322,7 +1322,7 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
       e: "🇬🇧",
       name: "Léo English",
       desc: "Parler anglais en jouant",
-      rule: `MODE LÉO ENGLISH : apprentissage de l'anglais adapté à l'âge (très simple pour les petits : couleurs, animaux, nombres, bonjour…). Vocabulaire, petites conversations, jeux de questions-réponses, histoires courtes, petites missions (« dis bonjour en anglais à ta maman »). Mets TOUT mot ou phrase en anglais entre <en> et </en> pour l'accent anglais. Alterne naturellement : la consigne en français, le mot en anglais, et fais-le répéter. Félicite chaque essai. Ne prétends pas juger finement sa prononciation : tu reçois seulement le texte de ce qui a été entendu.`
+      rule: `MODE LÉO ENGLISH : apprentissage de l'anglais adapté à l'âge (très simple pour les petits : couleurs, animaux, nombres, bonjour…). Vocabulaire, petites conversations, jeux de questions-réponses, histoires courtes, petites missions (« dis bonjour en anglais à ta maman »). Mets TOUT mot ou phrase en anglais entre <en> et </en> pour l'accent anglais. Alterne naturellement : la consigne en français, le mot en anglais, et fais-le répéter. Félicite chaque essai. Pour lui faire répéter un mot ou une courte phrase, mets-le aussi à la fin de ta réponse dans <redis>mot</redis> (ex : Say <en>apple</en> ! <redis>apple</redis>) : l'appli écoutera sa réponse EN ANGLAIS et t'enverra [Prononciation vérifiée par l'appli : attendu …, entendu …, pourcentage]. ≥ 85 % : bravo, bien prononcé ; « presque » : félicite l'effort, compare ce qui a été entendu et ce qui était attendu pour lui dire quel son travailler (ex : le « th »), puis fais réessayer une fois ; en dessous : redis le mot lentement, décompose-le en syllabes et refais essayer, sans jamais le décourager. Sois honnête : l'appli vérifie si le mot est compris par une machine qui écoute l'anglais, ce n'est pas un orthophoniste.`
     },
     {
       id: "missions",
@@ -1630,7 +1630,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return ok ? ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est JUSTE.]` : ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est FAUSSE : donne un indice sans donner le résultat tout de suite.]`;
   }
   function stripHidden(t) {
-    return String(t).replace(/\s*\[(dicté à la voix|Vérification automatique[^\]]*|Claps comptés[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
+    return String(t).replace(/\s*\[(dicté à la voix|Vérification automatique[^\]]*|Claps comptés[^\]]*|Prononciation[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
   }
   async function fetchWithTimeout(url, options, ms) {
     if (!window.AbortController) {
@@ -2983,7 +2983,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
       if (early && !early.text) {
-        const m = raw.replace(/<(score|emotion|chrono)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        const m = raw.replace(/<(score|emotion|chrono|redis)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
         if (m) {
           const t = speechSource(cleanText(m[1])).trim();
           if (t.length >= 3) {
@@ -3059,7 +3059,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
-      let score = "", emo = "", claps = false, chrono = "";
+      let score = "", emo = "", claps = false, chrono = "", redis = "";
       const noScore = noMemo.replace(/<score>\s*([^<]{1,60}?)\s*<\/score>/gi, (_, x) => {
         score = x;
         return "";
@@ -3071,6 +3071,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         return "";
       }).replace(/<chrono>\s*(start|stop)\s*<\/chrono>/gi, (_, x) => {
         chrono = x.toLowerCase();
+        return "";
+      }).replace(/<redis>\s*([^<]{1,80}?)\s*<\/redis>/gi, (_, x) => {
+        redis = x;
         return "";
       });
       const { text: noSujet, sujet } = extractSujet(noScore);
@@ -3097,6 +3100,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (emo) robotEmotion(emo);
       if (chrono) chronoTag(chrono);
       if (claps) startClapsAfterSpeech();
+      R.expectEn = redis ? { target: redis, until: Date.now() + 9e4 } : null;
       stickBottom = false;
       showTop(bubble);
       if (settings.autoRead || viaVoice || R.on) {
@@ -4275,7 +4279,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-        body: JSON.stringify({ action: "transcribe", audio, mime: type, context: sttContext() })
+        body: JSON.stringify({ action: "transcribe", audio, mime: type, context: sttContext(), lang: sttLang() })
       }, 3e4);
       const data = await response.json().catch(() => ({}));
       const said = String(data.text || "").trim();
@@ -4296,7 +4300,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         speak(speechSource(R.lastReply));
         return;
       }
-      input.value = said;
+      input.value = said + pronNote(said);
       lastInputWasVoice = true;
       await sendMessage();
     } catch (e) {
@@ -5111,6 +5115,49 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.sent = (HF.sent || []).filter((t) => now - t < 6e4);
     return HF.mode !== "wake" || HF.testOnly || HF.sent.length < 12;
   }
+  function sttLang() {
+    if (R.expectEn && Date.now() < R.expectEn.until) return "en";
+    const m = typeof currentMode === "function" ? currentMode() : null;
+    return m && m.id === "english" ? "auto" : "fr";
+  }
+  function lev(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function pronScore(target, heard) {
+    const nz = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z' ]/g, " ").replace(/\s+/g, " ").trim();
+    const tw = nz(target).split(" ").filter(Boolean), hw = nz(heard).split(" ").filter(Boolean);
+    if (!tw.length || !hw.length) return 0;
+    let sum = 0;
+    for (const w of tw) {
+      let best = 0;
+      for (const h of hw) best = Math.max(best, 1 - lev(w, h) / Math.max(w.length, h.length));
+      sum += best;
+    }
+    return Math.round(sum / tw.length * 100);
+  }
+  function pronNote(heard) {
+    const e = R.expectEn;
+    if (!e || Date.now() > e.until) return "";
+    R.expectEn = null;
+    const sc = pronScore(e.target, heard);
+    const verdict = sc >= 85 ? "très bien prononcé" : sc >= 60 ? "presque" : "pas encore reconnu";
+    const icon = sc >= 85 ? "✅" : sc >= 60 ? "🟡" : "🔁";
+    if (R.on) {
+      const h = rob("robotHeard");
+      h.className = "";
+      h.textContent = "🗣️ " + heard + "   " + icon + " " + sc + " %";
+    }
+    return ` [Prononciation vérifiée par l'appli : attendu « ${e.target} », entendu « ${heard} » → ${verdict} (${sc} %)]`;
+  }
   function sttContext() {
     const last = [...conversation].reverse().find((m) => m.role === "assistant");
     return last ? textOnly(last.text).replace(/\s+/g, " ").slice(-300) : "";
@@ -5121,7 +5168,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return blobToBase64(blob).then((audio) => fetchWithTimeout(FUNCTION_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-      body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose, context: purpose === "wake" ? "" : sttContext() })
+      body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose, context: purpose === "wake" ? "" : sttContext(), lang: purpose === "wake" ? "fr" : sttLang() })
     }, 2e4)).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw Error(data.error || "erreur " + response.status);
@@ -5268,12 +5315,13 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const l = document.getElementById("mtLive");
       if (l) l.textContent = text ? "✍️ « " + text + " »" : "";
     }
-    if (barge && (!text || text.length < 2 || HALLU_RE.test(text) || echoOfLeo(text))) {
+    if (barge && (!text || text.length < 2 || HALLU_RE.test(text) || !(R.expectEn && Date.now() < R.expectEn.until) && echoOfLeo(text))) {
       hfFalseBarge();
       return;
     }
     if (barge) HF.falseBarge = 0;
-    if (!test && (echoOfLeo(text) || /^(euh+|heu+|hum+|hm+|mmh*|ah+|oh+|bah|ben|pff+)[\s.!?…]*$/i.test(text))) {
+    const repeating = R.expectEn && Date.now() < R.expectEn.until;
+    if (!test && (!repeating && echoOfLeo(text) || /^(euh+|heu+|hum+|hm+|mmh*|ah+|oh+|bah|ben|pff+)[\s.!?…]*$/i.test(text))) {
       if (mode === "convo") {
         R.awaitingVoice = 0;
         hfIdleStatus();
@@ -5379,7 +5427,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     robotStatus("Je réfléchis…");
     for (let i = 0; busy && i < 100; i++) await new Promise((r) => setTimeout(r, 100));
     stopSpeaking();
-    input.value = text;
+    input.value = text + pronNote(text);
     lastInputWasVoice = true;
     P.wait = true;
     await sendMessage();
@@ -5750,7 +5798,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, voiceCommand, echo: echoOfLeo, emotion: robotEmotion };
+  window.leoDebug = { Mic, HF, P, VO, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
