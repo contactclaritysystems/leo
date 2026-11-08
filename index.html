@@ -296,6 +296,47 @@
   .face.sleep .brow path, .face.sleep .nose, .face.sleep .blush { opacity: .35; filter: none; }
   #robotFaceBox { width: min(92vw, calc((100vh - 250px) * 1.18), 700px); }
   @media (orientation: portrait) and (min-width: 600px) { #robotFaceBox { width: min(94vw, calc((100vh - 330px) * 1.18), 980px); } }
+
+  /* Boutons du bas discrets (v44) : le visage reste la vedette */
+  .rctl { bottom: calc(10px + env(safe-area-inset-bottom)); opacity: .75; }
+  .rctl button { width: 42px; height: 42px; font-size: 18px; margin: 0 10px; }
+  .rctl #robotMic { width: 56px; height: 56px; font-size: 24px; box-shadow: 0 0 0 4px #2563eb33; }
+  .rctl #robotMic.on { box-shadow: 0 0 0 6px #dc262655; }
+  #robot { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+
+  /* ---------- Visage « écran bleu » (v45, d'après l'image choisie) ---------- */
+  body.robot-on, #robot { background: radial-gradient(ellipse 85% 70% at 50% 42%, #9bdcff 0%, #4fa8f5 38%, #2563eb 70%, #172f7a 100%) !important; }
+  .face .socket { display: none; }
+  .face .sclera { fill: url(#scleraGrad); stroke: #1e3a8a; stroke-width: 3; filter: drop-shadow(0 4px 6px #1e3a8a55); }
+  .face .pupil { fill: #0b1736; }
+  .face .brow path { stroke: #13235a; stroke-width: 11; filter: none; }
+  .face .nose { fill: #13235a; filter: none; }
+  .face .blush { stroke: none; fill: #fbcfe8; opacity: .25; }
+  .face.happy .blush, .face.excited .blush { opacity: .6; stroke: none; }
+  .face .mouth, .face.happy .mouth, .face.excited .mouth { fill: #13235a; stroke: #13235a; stroke-width: 4; filter: none; }
+  .face .tongue { fill: #f472b6; }
+  .face .happyEye { stroke: #13235a; filter: none; }
+  .face .ring { stroke: #ffffff; }
+  .face.listening .ring { opacity: .35; }
+  .face .dots { fill: #13235a; }
+  .face .zzz { fill: #13235a; }
+  .face.sleep .sclera { fill: #bfdbfe; }
+  .face.sleep .brow path, .face.sleep .nose { opacity: .5; }
+  /* le visage remplit l'écran */
+  #robotFaceBox { width: min(96vw, calc((100vh - 200px) * 0.97), 900px); }
+  @media (orientation: portrait) { #robotFaceBox { width: min(100vw, calc((100vh - 230px) * 0.97)); } #robot { padding-top: calc(48px + env(safe-area-inset-top)) !important; } }
+  #robotStatus { color: #ffffffd9 !important; text-shadow: 0 1px 4px #0b173666; }
+  #robotSub { color: #ffffff !important; text-shadow: 0 1px 6px #0b173699; }
+  #robotHeard { color: #e0f2fe !important; text-shadow: 0 1px 4px #0b173666; }
+  #robot .rtop button, .rctl button { background: #ffffff26 !important; color: #fff !important; }
+  #robot .rtop .who, #robotName { color: #fff !important; }
+  .rctl #robotMic { background: #1e40af !important; }
+
+  /* Les phrases s'écrivent en bas, loin du visage (v46) */
+  #robot:not(.with-panel) #robotFaceBox { margin-top: auto; margin-bottom: auto; }
+  #robot:not(.with-panel) #robotStatus { margin-top: 18px; }
+  #robot:not(.with-panel) #robotSub { margin-bottom: 10px; }
+  @media (orientation: landscape) { #robotFaceBox { width: min(90vw, calc((100vh - 330px) * 0.97), 900px) !important; } }
 </style>
 </head>
 <body>
@@ -345,43 +386,44 @@
     <button type="button" id="robotKbd" class="grey kbd" aria-label="Clavier" style="display:none">⌨️</button>
   </div>
   <div id="robotFaceBox" role="button" aria-label="Touche le visage de Léo">
-    <svg viewBox="0 0 400 340" id="robotFace" class="face idle">
+    <svg viewBox="40 30 320 330" id="robotFace" class="face idle">
       <defs>
-        <radialGradient id="irisGrad" cx="50%" cy="62%" r="60%">
-          <stop offset="0%" stop-color="#bfdbfe"/><stop offset="45%" stop-color="#60a5fa"/><stop offset="80%" stop-color="#2563eb"/><stop offset="100%" stop-color="#1e3a8a"/>
+        <radialGradient id="irisGrad" cx="50%" cy="65%" r="62%">
+          <stop offset="0%" stop-color="#7dd3fc"/><stop offset="50%" stop-color="#3b82f6"/><stop offset="85%" stop-color="#1d4ed8"/><stop offset="100%" stop-color="#1e3a8a"/>
         </radialGradient>
-        <clipPath id="mouthClip"><path id="mouthClipPath" d="M158 250 Q200 258 242 250 Q200 286 158 250Z"/></clipPath>
+        <radialGradient id="scleraGrad" cx="50%" cy="40%" r="65%"><stop offset="70%" stop-color="#ffffff"/><stop offset="100%" stop-color="#dbeafe"/></radialGradient>
+        <clipPath id="eyeClip"><ellipse rx="52" ry="58"/></clipPath>
+        <clipPath id="mouthClip"><path id="mouthClipPath" d="M158 262 Q200 270 242 262 Q200 300 158 262Z"/></clipPath>
       </defs>
-      <circle class="ring" id="ring" cx="200" cy="170" r="170"/>
-      <!-- sourcils arrondis -->
-      <g class="brow" id="browL"><path d="M84 74 Q124 46 168 64"/></g>
-      <g class="brow" id="browR"><path d="M232 64 Q276 46 316 74"/></g>
-      <!-- yeux : orbite + iris bleu brillant + pupille + reflets -->
-      <g transform="translate(128 152)"><g class="eye" id="eyeL">
-        <circle class="socket" r="60"/>
-        <g id="irisL"><circle r="46" fill="url(#irisGrad)"/><circle r="25" class="pupil"/>
-          <circle class="hl" cx="16" cy="-17" r="12"/><circle class="hl small" cx="-15" cy="16" r="5.5"/></g>
+      <circle class="ring" id="ring" cx="200" cy="190" r="170"/>
+      <!-- sourcils foncés -->
+      <g class="brow" id="browL"><path d="M90 82 Q126 62 160 74"/></g>
+      <g class="brow" id="browR"><path d="M240 74 Q274 62 310 82"/></g>
+      <!-- yeux : blanc + grand iris bleu + pupille + reflets -->
+      <g transform="translate(128 150)"><g class="eye" id="eyeL">
+        <ellipse class="sclera" rx="54" ry="60"/>
+        <g clip-path="url(#eyeClip)"><g id="irisL"><circle r="44" fill="url(#irisGrad)"/><circle r="23" class="pupil"/>
+          <circle class="hl" cx="14" cy="-15" r="11"/><circle class="hl small" cx="-13" cy="14" r="5"/></g></g>
       </g></g>
-      <g transform="translate(272 152)"><g class="eye" id="eyeR">
-        <circle class="socket" r="60"/>
-        <g id="irisR"><circle r="46" fill="url(#irisGrad)"/><circle r="25" class="pupil"/>
-          <circle class="hl" cx="16" cy="-17" r="12"/><circle class="hl small" cx="-15" cy="16" r="5.5"/></g>
+      <g transform="translate(272 150)"><g class="eye" id="eyeR">
+        <ellipse class="sclera" rx="54" ry="60"/>
+        <g clip-path="url(#eyeClip)"><g id="irisR"><circle r="44" fill="url(#irisGrad)"/><circle r="23" class="pupil"/>
+          <circle class="hl" cx="14" cy="-15" r="11"/><circle class="hl small" cx="-13" cy="14" r="5"/></g></g>
       </g></g>
-      <!-- yeux fermés de joie ^^ -->
-      <path class="happyEye" d="M76 164 Q128 104 180 164"/><path class="happyEye" d="M220 164 Q272 104 324 164"/>
+      <path class="happyEye" d="M80 162 Q128 108 176 162"/><path class="happyEye" d="M224 162 Q272 108 320 162"/>
       <!-- petit nez -->
-      <path class="nose" d="M188 220 Q200 212 212 220 Q208 233 200 236 Q192 233 188 220Z"/>
-      <!-- joues « /// » -->
-      <g class="blush"><path d="M80 246 l7 -14 M93 246 l7 -14 M106 246 l7 -14"/><path d="M287 246 l7 -14 M300 246 l7 -14 M313 246 l7 -14"/></g>
-      <!-- bouche souriante qui parle (dessinée par le programme) + langue -->
+      <path class="nose" d="M189 216 Q200 210 211 216 Q208 228 200 231 Q192 228 189 216Z"/>
+      <!-- joues -->
+      <g class="blush"><ellipse cx="78" cy="236" rx="24" ry="12"/><ellipse cx="322" cy="236" rx="24" ry="12"/></g>
+      <!-- bouche souriante qui parle + langue -->
       <g class="mouthG">
-        <path class="mouth" id="mouth" d="M158 250 Q200 258 242 250 Q200 286 158 250Z"/>
-        <ellipse class="tongue" id="tongue" cx="200" cy="268" rx="18" ry="8" clip-path="url(#mouthClip)"/>
+        <path class="mouth" id="mouth" d="M158 262 Q200 270 242 262 Q200 300 158 262Z"/>
+        <ellipse class="tongue" id="tongue" cx="200" cy="280" rx="18" ry="8" clip-path="url(#mouthClip)"/>
       </g>
-      <text class="qmark" x="338" y="92">?</text>
-      <g class="stars"><path d="M44 56 l6 14 14 6 -14 6 -6 14 -6 -14 -14 -6 14 -6z"/><path d="M352 262 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z"/></g>
-      <g class="dots"><circle cx="304" cy="56" r="7"/><circle cx="326" cy="44" r="7"/><circle cx="348" cy="32" r="7"/></g>
-      <text class="zzz" x="306" y="78">Z z</text>
+      <text class="qmark" x="330" y="96">?</text>
+      <g class="stars"><path d="M60 60 l6 14 14 6 -14 6 -6 14 -6 -14 -14 -6 14 -6z"/><path d="M340 290 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z"/></g>
+      <g class="dots"><circle cx="300" cy="60" r="7"/><circle cx="322" cy="48" r="7"/><circle cx="344" cy="36" r="7"/></g>
+      <text class="zzz" x="300" y="84">Z z</text>
     </svg>
   </div>
   <div id="robotStatus"></div>
@@ -470,7 +512,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v43</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v46</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -3323,7 +3365,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const tr = (t) => `scale(${(0.96 + 0.04 * t).toFixed(3)} ${(open * (0.9 + 0.1 * t)).toFixed(3)})`;
     rob("eyeL").setAttribute("transform", tr(tall));
     rob("eyeR").setAttribute("transform", tr(tallR));
-    const ix = Math.max(-13, Math.min(13, R.look.x * 0.6)).toFixed(1), iy = Math.max(-11, Math.min(11, R.look.y * 0.6)).toFixed(1);
+    const ix = Math.max(-9, Math.min(9, R.look.x * 0.5)).toFixed(1), iy = Math.max(-11, Math.min(11, R.look.y * 0.5)).toFixed(1);
     rob("irisL").setAttribute("transform", `translate(${ix} ${iy})`);
     rob("irisR").setAttribute("transform", `translate(${ix} ${iy})`);
     const lift = st === "excited" ? -10 : st === "listening" ? -6 : 0;
@@ -3374,10 +3416,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   }
   function setMouth(m, st) {
     const joy = st === "happy" || st === "excited";
-    let w = joy ? 50 : st === "sleep" ? 20 : st === "thinking" ? 16 : st === "question" ? 30 : 42;
+    let w = joy ? 46 : st === "sleep" ? 18 : st === "thinking" ? 14 : st === "question" ? 26 : 36;
     let h = st === "speaking" ? 5 + m * 30 : joy ? 32 : st === "sleep" ? 2 : st === "thinking" ? 9 : st === "question" ? 6 : st === "listening" ? 18 : 22;
-    if (st === "speaking") w = 42 - m * 8 + (m > 0.3 ? (R.syl.wide - 0.5) * 12 : 0);
-    const cx = 200, y = 252, curve = st === "thinking" ? 2 : st === "question" ? 3 : 9;
+    if (st === "speaking") w = 36 - m * 8 + (m > 0.3 ? (R.syl.wide - 0.5) * 12 : 0);
+    const cx = 200, y = 262, curve = st === "thinking" ? 2 : st === "question" ? 3 : 9;
     const d = `M${(cx - w).toFixed(1)} ${y} Q${cx} ${y + curve} ${(cx + w).toFixed(1)} ${y} Q${cx} ${(y + curve + h * 2).toFixed(1)} ${(cx - w).toFixed(1)} ${y}Z`;
     rob("mouth").setAttribute("d", d);
     rob("mouthClipPath").setAttribute("d", d);
