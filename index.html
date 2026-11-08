@@ -246,6 +246,9 @@
   #mtThr { position: absolute; top: 0; bottom: 0; width: 2px; background: #fbbf24; }
   .mtbtns button { display: block; width: 100%; margin: 8px 0; height: 50px; border-radius: 12px; font-size: 16px; background: #1d4ed8; }
   .mtbtns.dis button { opacity: .4; pointer-events: none; }
+  .mtlive { font-size: 20px; line-height: 1.4; color: #fde68a; min-height: 28px; margin: 6px 0; }
+  #robotHeard.live { color: #93c5fd; }
+  #robotHeard.ignored { color: #475569; font-style: italic; }
   .mtlog { font-size: 14px; padding-left: 18px; margin: 6px 0; }
   .mtlog li { margin: 4px 0; }
   #mtReport { width: 100%; font-size: 11px; background: #020617; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; padding: 8px; box-sizing: border-box; }
@@ -392,7 +395,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v33</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v34</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -579,13 +582,15 @@
     <div id="mtHear" class="mtres"></div>
     <div id="mtTech" class="note"></div>
     <h3>3. Essais</h3>
+    <p class="note">Pendant que tu parles, ce que Léo comprend s’écrit en jaune.</p>
     <div id="mtBtns" class="mtbtns dis">
       <button type="button" id="mtRec">⏺️ Enregistrer 3 s puis réécouter</button>
       <button type="button" id="mtStt">📝 Dire une phrase → texte</button>
-      <button type="button" id="mtEcho">🔊 Micro ouvert + voix de Léo</button>
+      <button type="button" id="mtEcho">🔊 Voix de Léo : grésillement ?</button>
       <button type="button" id="mtWake">👂 Écoute continue + mot « Léo »</button>
     </div>
     <div id="mtOut" class="mtres"></div>
+    <div id="mtLive" class="mtlive"></div>
     <ol id="mtLog" class="mtlog"></ol>
     <h3>4. Rapport (à m’envoyer en capture)</h3>
     <textarea id="mtReport" readonly rows="8"></textarea>
@@ -1629,6 +1634,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   let audioUnlocked = false, speakToken = 0, currentAudioUrl = null, ttsFailures = 0, finishPlayback = null;
+  let speechActive = false;
+  const ttsCache = /* @__PURE__ */ new Map();
   function silentWavUrl() {
     const sr = 8e3, n = 400, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
     const w = (o, str) => {
@@ -1651,6 +1658,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   function stopSpeaking() {
     speakToken++;
+    speechActive = false;
     if (synth) synth.cancel();
     try {
       player.pause();
@@ -1674,6 +1682,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       u.rate = rate;
       u.pitch = 1.05;
       u.volume = 1;
+      micBeforeSpeak();
       synth.speak(u);
     }
   }
@@ -1705,6 +1714,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       player.defaultPlaybackRate = player.playbackRate = Math.min(1.6, Math.max(0.7, rate));
       player.preservesPitch = true;
       player.webkitPreservesPitch = true;
+      micBeforeSpeak();
       const p = player.play();
       if (p) p.catch((err) => {
         finishPlayback = null;
@@ -1713,6 +1723,31 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     });
   }
   async function speak(text, opts = {}) {
+    const p = speakInner(text, opts);
+    speechActive = true;
+    const tok = speakToken;
+    try {
+      await p;
+    } finally {
+      if (tok === speakToken) speechActive = false;
+    }
+  }
+  function cachedTts(seg, voice, style) {
+    const key = voice + "|" + seg.lang + "|" + seg.t;
+    if (!ttsCache.has(key)) {
+      const pr = fetchTts(seg, voice, style);
+      ttsCache.set(key, pr);
+      pr.catch(() => ttsCache.delete(key));
+    }
+    return ttsCache.get(key);
+  }
+  function prefetchSpeech(text) {
+    if (settings.voiceMode !== "openai") return;
+    const t = speechText(text, "fr");
+    if (t) cachedTts({ lang: "fr", t: t.trim() }, settings.aiVoice).catch(() => {
+    });
+  }
+  async function speakInner(text, opts = {}) {
     stopSpeaking();
     const token = speakToken;
     const segs = [];
@@ -1739,7 +1774,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     let done = 0;
     if (mode === "openai" && (ttsFailures < 2 || opts.test)) {
       try {
-        const blobs = segs.map((s) => fetchTts(s, aiVoice, opts.style));
+        const blobs = segs.map((s) => opts.cache ? cachedTts(s, aiVoice, opts.style) : fetchTts(s, aiVoice, opts.style));
         blobs.forEach((p) => p.catch(() => {
         }));
         for (let i = 0; i < segs.length; i++) {
@@ -3133,6 +3168,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   function robotOnReply(reply, blocks) {
+    if (P.wait) P.chat = Date.now();
     if (!R.on) return;
     R.lastActivity = Date.now();
     R.awaitingVoice = Date.now() + 8e3;
@@ -3359,6 +3395,104 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     lastBlockAt: 0,
     events: []
   };
+  const MIC_MODE_KEY = "leo_mic_mode_v34";
+  function micMode() {
+    return readJSON(MIC_MODE_KEY, "pause");
+  }
+  function micBeforeSpeak() {
+    if (!Mic.live || Mic.paused || Mic.forceOpen || micMode() !== "pause") return;
+    Mic.paused = true;
+    Mic.quietSince = 0;
+    try {
+      Mic.stream.getTracks().forEach((t) => {
+        t.onended = null;
+        t.stop();
+      });
+    } catch (e) {
+    }
+    try {
+      Mic.src.disconnect();
+    } catch (e) {
+    }
+    Mic.src = null;
+    Mic.stream = null;
+    Mic.level = 0;
+    try {
+      Mic.ctx.suspend();
+    } catch (e) {
+    }
+    hfReset();
+    micLog("micro en pause pendant la voix");
+  }
+  function micTrackHandlers() {
+    const t = micTrack();
+    if (!t) return;
+    t.onended = () => {
+      if (!Mic.paused) {
+        micLog("piste du micro terminée");
+        micLost();
+      }
+    };
+    t.onmute = () => micLog("micro coupé par le système");
+    t.onunmute = () => micLog("micro rétabli");
+  }
+  function micReopen() {
+    if (!Mic.paused || Mic.reopening) return;
+    Mic.reopening = true;
+    const t0 = Date.now();
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const dt = Date.now() - t0;
+      Mic.reopening = false;
+      if (!Mic.paused || !Mic.ctx) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      Mic.stream = stream;
+      try {
+        Mic.ctx.resume();
+      } catch (e) {
+      }
+      Mic.src = Mic.ctx.createMediaStreamSource(stream);
+      Mic.src.connect(Mic.proc);
+      Mic.paused = false;
+      Mic.lastBlockAt = Date.now();
+      Mic.reopenMs = dt;
+      micTrackHandlers();
+      micLog("micro rouvert en " + dt + " ms");
+      HF.muteUntil = Date.now() + 150;
+      if (dt > 1800) {
+        saveJSON(MIC_MODE_KEY, "ouvert");
+        micLog("réouverture lente (iOS a peut-être redemandé l’autorisation) : le micro restera ouvert");
+      }
+      setTimeout(() => {
+        if (Mic.ctx && Mic.ctx.state !== "running") {
+          micLog("son en pause après réouverture");
+          saveJSON(MIC_MODE_KEY, "ouvert");
+          hfAskTap("Touche l’écran une fois pour que je t’entende à nouveau.");
+        }
+      }, 700);
+    }, (err) => {
+      Mic.reopening = false;
+      Mic.paused = false;
+      saveJSON(MIC_MODE_KEY, "ouvert");
+      micLog("réouverture impossible : " + (err && err.name || "erreur") + " → le micro restera ouvert");
+      Mic.live = true;
+      micStop();
+      if (HF.on) {
+        HF.on = false;
+        hfAskTap("Touche l’écran une fois pour que je t’entende à nouveau.");
+      }
+    });
+  }
+  setInterval(() => {
+    if (!Mic.paused) return;
+    if (speechActive || speakingNow()) {
+      Mic.quietSince = 0;
+      return;
+    }
+    if (!Mic.quietSince) Mic.quietSince = Date.now();
+    else if (Date.now() - Mic.quietSince > 200) micReopen();
+  }, 80);
   function micLog(t) {
     Mic.events.push((/* @__PURE__ */ new Date()).toLocaleTimeString() + " " + t);
     if (Mic.events.length > 40) Mic.events.shift();
@@ -3478,15 +3612,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       Mic.live = true;
       Mic.error = "";
       Mic.errorName = "";
-      const t = micTrack();
-      if (t) {
-        t.onended = () => {
-          micLog("piste du micro terminée");
-          micLost();
-        };
-        t.onmute = () => micLog("micro coupé par le système");
-        t.onunmute = () => micLog("micro rétabli");
-      }
+      micTrackHandlers();
       micLog("micro autorisé (" + Mic.ctxKind + ", " + Mic.rate + " Hz)");
       setTimeout(micCheckSignal, 1800);
       return true;
@@ -3538,6 +3664,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   function micStop() {
+    Mic.paused = false;
+    Mic.reopening = false;
     try {
       if (Mic.stream) Mic.stream.getTracks().forEach((t) => t.stop());
     } catch (e) {
@@ -3568,7 +3696,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   document.addEventListener("touchend", micWakeOnTouch, true);
   document.addEventListener("click", micWakeOnTouch, true);
   setInterval(() => {
-    if (!Mic.live) return;
+    if (!Mic.live || Mic.paused || Mic.reopening) return;
     const t = micTrack();
     if (t && t.readyState === "ended") {
       micLost();
@@ -3618,6 +3746,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     HF.silentMs = 0;
     HF.capMs = 0;
     HF.speechMs = 0;
+    HF.spec = null;
+    HF.partialAt = 0;
   }
   function hfIdleStatus() {
     if (!HF.on || HF.testOnly || !R.on) return;
@@ -3673,11 +3803,77 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     HF.buf.push(d);
     HF.capMs += ms;
     if (rms > thr * 0.6) {
+      if (HF.silentMs >= 300) HF.spec = null;
       HF.silentMs = 0;
       HF.speechMs += ms;
     } else HF.silentMs += ms;
-    if (HF.silentMs >= (HF.mode === "wake" ? 700 : 1e3) || HF.capMs >= 12e3) hfFinish();
+    if (!HF.spec && HF.silentMs >= 300 && HF.speechMs >= 300 && hfCanSend()) {
+      HF.spec = { p: sttRequest(encodeWav(HF.buf, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), sentAt: now };
+      HF.spec.p.catch(() => {
+      });
+    }
+    if ((HF.testOnly || HF.mode === "convo") && !HF.partialBusy && HF.capMs - HF.partialAt >= 1200 && HF.silentMs < 300) {
+      HF.partialAt = HF.capMs;
+      HF.partialBusy = true;
+      sttRequest(encodeWav(HF.buf, Mic.rate), "talk").then((t) => {
+        if (HF.capturing) hfLive(t);
+      }, () => {
+      }).then(() => {
+        HF.partialBusy = false;
+      });
+    }
+    if (HF.silentMs >= (HF.mode === "wake" ? 600 : 800) || HF.capMs >= 12e3) hfFinish();
   }
+  function hfCanSend() {
+    const now = Date.now();
+    HF.sent = (HF.sent || []).filter((t) => now - t < 6e4);
+    return HF.mode !== "wake" || HF.testOnly || HF.sent.length < 12;
+  }
+  function sttRequest(blob, purpose) {
+    (HF.sent = HF.sent || []).push(Date.now());
+    if (purpose === "wake") hfDayCount(true);
+    return blobToBase64(blob).then((audio) => fetchWithTimeout(FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose })
+    }, 2e4)).then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(data.error || "erreur " + response.status);
+      return String(data.text || "").trim();
+    });
+  }
+  function hfLive(t) {
+    if (!t || HALLU_RE.test(t)) return;
+    if (HF.testOnly) {
+      const l = document.getElementById("mtLive");
+      if (l) l.textContent = "✍️ « " + t + " »";
+    } else if (R.on) {
+      rob("robotHeard").className = "live";
+      rob("robotHeard").textContent = "✍️ " + t;
+    }
+  }
+  const P = { end: 0, stt: 0, chat: 0, audio: 0, wait: false };
+  function chronoText() {
+    const s = (a, b) => ((b - a) / 1e3).toFixed(1);
+    if (!P.end || !P.audio) return "";
+    return "⏱ compris " + s(P.end, P.stt) + " s" + (P.chat ? " · réponse " + s(P.stt, P.chat) + " s · voix " + s(P.chat, P.audio) : " · voix " + s(P.stt, P.audio)) + " s · total " + s(P.end, P.audio) + " s";
+  }
+  player.addEventListener("playing", () => {
+    if (!P.wait) return;
+    P.wait = false;
+    P.audio = Date.now();
+    const c = chronoText();
+    if (!c) return;
+    if (MT.open) {
+      MT.results.chrono = c;
+      mtReport();
+    }
+    if (R.on) {
+      const h = rob("robotHeard");
+      h.className = "";
+      h.textContent = (h.dataset.said ? "🗣️ " + h.dataset.said + "  " : "") + c;
+    }
+  });
   function hfDayCount(add) {
     const day = (/* @__PURE__ */ new Date()).toDateString();
     let o = readJSON(HF_DAY_KEY, null);
@@ -3689,7 +3885,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return o.n;
   }
   function hfFinish() {
-    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs;
+    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs, spec = HF.spec, endAt = Date.now() - HF.silentMs;
     hfReset();
     if (speechMs < 300) return;
     const now = Date.now();
@@ -3704,8 +3900,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       return;
     }
     HF.checks.push(now);
-    hfDayCount(true);
-    hfTranscribe(encodeWav(bufs, Mic.rate), capMs);
+    if (!spec && !hfCanSend()) return;
+    hfTranscribe(spec ? spec.p : sttRequest(encodeWav(bufs, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), capMs, endAt);
   }
   const HALLU_RE = /amara|sous-titr|merci d['’]avoir regard|abonnez|un enfant parle [àa] l[ée]o|pour ses devoirs ou pour jouer|^\W*$/i;
   function findWake(text) {
@@ -3715,8 +3911,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (idx < 0) return null;
     return { rest: words.slice(idx + 1).join(" ").trim() };
   }
-  async function hfTranscribe(blob, capMs) {
-    const mode = HF.mode, test = HF.testOnly, t0 = Date.now();
+  async function hfTranscribe(request, capMs, endAt) {
+    const mode = HF.mode, test = HF.testOnly, t0 = endAt || Date.now();
     HF.pending = true;
     if (!test && mode === "convo") {
       R.awaitingVoice = Date.now() + 2e4;
@@ -3724,15 +3920,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     let text = "";
     try {
-      const audio = await blobToBase64(blob);
-      const response = await fetchWithTimeout(FUNCTION_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-        body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose: mode === "wake" ? "wake" : "talk" })
-      }, 2e4);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw Error(data.error || "erreur " + response.status);
-      text = String(data.text || "").trim();
+      text = await request;
     } catch (err) {
       HF.pending = false;
       if (test) {
@@ -3747,13 +3935,29 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     HF.pending = false;
     const ms = Date.now() - t0;
+    P.end = t0;
+    P.stt = Date.now();
+    P.chat = 0;
+    P.audio = 0;
+    P.wait = false;
+    if (test) {
+      const l = document.getElementById("mtLive");
+      if (l) l.textContent = text ? "✍️ « " + text + " »" : "";
+    }
     if (HALLU_RE.test(text) || text.length < 2) {
       if (test && HF.onTest) HF.onTest("… " + (capMs / 1e3).toFixed(1) + " s de son → rien de compréhensible");
       if (!test && mode === "convo") {
         R.awaitingVoice = 0;
         hfIdleStatus();
+        rob("robotHeard").textContent = "";
       }
       return;
+    }
+    if (!test && R.on) {
+      const h = rob("robotHeard");
+      h.className = "";
+      h.dataset.said = text;
+      h.textContent = "🗣️ " + text;
     }
     const w = findWake(text);
     if (test) {
@@ -3762,20 +3966,25 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       return;
     }
     if (mode === "wake") {
-      if (!w) return;
+      if (!w) {
+        const h = rob("robotHeard");
+        h.className = "ignored";
+        h.textContent = "👂 « " + text + " » — pas pour moi";
+        return;
+      }
       R.lastActivity = Date.now();
       hfSetMode("convo");
       if (w.rest.length >= 3 && !/^(tu es l[àa]|t['’]es l[àa]|r[ée]veille)/i.test(w.rest)) {
         hfSend(w.rest);
         return;
       }
-      hfAnswerShort(["Oui ? Je t’écoute !", "Oui, je suis là !", "Je t’écoute !"][Math.floor(Math.random() * 3)]);
+      hfAnswerShort("Oui ?");
       return;
     }
     const said = w ? w.rest : text;
     R.lastActivity = Date.now();
     if (!said) {
-      hfAnswerShort("Oui ? Je t’écoute !");
+      hfAnswerShort("Oui ?");
       return;
     }
     if (/^(au revoir|bonne nuit|[àa] plus|c['’]est fini|on arr[êe]te|chut|tais[- ]toi)\b/i.test(said)) {
@@ -3793,13 +4002,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   function hfAnswerShort(t) {
     R.awaitingVoice = Date.now() + 8e3;
     R.questionUntil = Date.now() + 6e3;
+    P.wait = true;
     if (t === null) {
       robotStatus("Je répète…");
       speak(speechSource(R.lastReply));
       return;
     }
     robotStatus(t);
-    speak(t);
+    speak(t, { cache: true });
   }
   async function hfSend(text) {
     if (!currentProfile()) {
@@ -3809,10 +4019,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     closePanel();
     rob("robotSub").replaceChildren();
-    rob("robotHeard").textContent = "🗣️ " + text;
+    const h = rob("robotHeard");
+    h.className = "";
+    h.dataset.said = text;
+    h.textContent = "🗣️ " + text;
     robotStatus("Je réfléchis…");
     input.value = text;
     lastInputWasVoice = true;
+    P.wait = true;
     await sendMessage();
   }
   function hfAskTap(msg) {
@@ -3841,6 +4055,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       const first = !HF.on;
       HF.on = true;
       hfReset();
+      prefetchSpeech("Oui ?");
+      prefetchSpeech("D’accord ! Dis « Léo » quand tu veux me parler.");
       rob("robotHands").classList.add("on");
       if (first) {
         hfSetMode("wake");
@@ -3873,6 +4089,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible" || !HF.on) return;
     setTimeout(() => {
+      if (Mic.paused) return;
       const t = micTrack();
       if (!Mic.live || t && t.readyState === "ended") {
         micLost();
@@ -3998,7 +4215,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     lines2.push("Accès micro : " + (Mic.live ? "autorisé" : Mic.errorName ? "refusé/erreur " + Mic.errorName : "non testé"));
     if (Mic.live) lines2.push("Son : ".concat(Mic.ctxKind, " ").concat(Mic.rate, " Hz, état ").concat(Mic.ctx && Mic.ctx.state, ", blocs ").concat(Mic.blocks, ", vides ").concat(Mic.zeroBlocks).concat(Mic.repaired ? ", réparé" : ""));
     for (const k in MT.results) lines2.push("Essai " + k + " : " + MT.results[k]);
-    lines2.push("Journal : " + Mic.events.slice(-12).join(" | "));
+    lines2.push("Mode du micro pendant la voix : " + micMode());
+    lines2.push("Journal : " + Mic.events.slice(-14).join(" | "));
     mt("mtReport").value = lines2.join("\n");
   }
   function openMicTest() {
@@ -4043,20 +4261,33 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   });
   mt("mtStt").addEventListener("click", async () => {
     if (!Mic.live) return;
-    mtOut("🗣️ Dis une phrase pendant 4 secondes (ex. « Léo, combien font 7 fois 8 ? »)…");
-    const bufs = await mtCollect(4);
-    mtOut("⏳ Le serveur écoute…");
+    mtOut("🗣️ Parle maintenant, pendant 5 secondes (ex. « Léo, combien font 7 fois 8 ? »)…");
+    const live = document.getElementById("mtLive");
+    live.textContent = "✍️ …";
+    const bufs = [];
+    let busyLive = false;
+    const f = (d) => {
+      bufs.push(d);
+    };
+    Mic.listeners.push(f);
+    const timer = setInterval(() => {
+      if (busyLive || !bufs.length) return;
+      busyLive = true;
+      sttRequest(encodeWav(bufs, Mic.rate), "talk").then((t) => {
+        if (t && !HALLU_RE.test(t)) live.textContent = "✍️ « " + t + " »";
+      }, () => {
+      }).then(() => {
+        busyLive = false;
+      });
+    }, 1200);
+    await new Promise((r) => setTimeout(r, 5e3));
+    clearInterval(timer);
+    Mic.listeners.splice(Mic.listeners.indexOf(f), 1);
+    mtOut("⏳ Texte final…");
     const t0 = Date.now();
     try {
-      const audio = await blobToBase64(encodeWav(bufs, Mic.rate));
-      const response = await fetchWithTimeout(FUNCTION_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-        body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose: "talk" })
-      }, 25e3);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw Error(data.error || "erreur " + response.status);
-      const text = String(data.text || "").trim();
+      const text = await sttRequest(encodeWav(bufs, Mic.rate), "talk");
+      live.textContent = text ? "✍️ « " + text + " »" : "";
       const w = findWake(text);
       MT.results.comprehension = "« " + text + " » en " + ((Date.now() - t0) / 1e3).toFixed(1) + " s" + (w ? " (mot Léo reconnu)" : "");
       mtOut(text ? "✅ Compris : « " + text + " » (" + ((Date.now() - t0) / 1e3).toFixed(1) + " s)" + (w ? " — mot « Léo » reconnu" : "") : "❌ Rien compris : parle plus fort ou plus près.", text ? "ok" : "bad");
@@ -4068,22 +4299,22 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   mt("mtEcho").addEventListener("click", async () => {
     if (!Mic.live) return;
     unlockSpeech();
-    const b0 = Mic.blocks;
-    let maxLv = 0, sawSpeak = false;
-    const f = (d, rms) => {
-      if (speakingNow()) {
-        sawSpeak = true;
-        if (rms > maxLv) maxLv = rms;
-      }
-    };
-    Mic.listeners.push(f);
-    mtOut("🔊 Léo parle avec le micro ouvert…");
-    await speak("Bonjour ! Je suis Léo. Je vérifie que je peux parler et écouter en même temps.");
+    mtOut("🔊 Phrase 1 : micro en PAUSE pendant que Léo parle…");
+    Mic.forceOpen = false;
+    const mode0 = micMode();
+    saveJSON(MIC_MODE_KEY, "pause");
+    await speak("Phrase un. Le micro est en pause pendant que je parle.");
+    await new Promise((r) => setTimeout(r, 1500));
+    const reopened = Mic.live && !Mic.paused;
+    mtOut("🔊 Phrase 2 : micro OUVERT pendant que Léo parle…");
+    Mic.forceOpen = true;
+    await speak("Phrase deux. Le micro reste ouvert pendant que je parle.");
+    Mic.forceOpen = false;
+    if (micMode() === "pause" || mode0 === "pause") saveJSON(MIC_MODE_KEY, micMode());
     await new Promise((r) => setTimeout(r, 400));
-    Mic.listeners.splice(Mic.listeners.indexOf(f), 1);
-    const t = micTrack(), alive = Mic.live && t && t.readyState === "live" && Mic.blocks > b0 + 5;
-    MT.results.voix_et_micro = (sawSpeak ? "voix jouée" : "voix non détectée") + ", micro " + (alive ? "toujours actif" : "COUPÉ") + ", niveau max pendant la voix " + maxLv.toFixed(3);
-    mtOut((alive ? "✅ Le micro reste actif pendant que Léo parle." : "❌ Le micro s’est coupé pendant la voix de Léo.") + " La voix était-elle aussi forte que d’habitude ? (Note-le : avec le micro ouvert, iOS baisse parfois le volume.)", alive ? "ok" : "bad");
+    MT.results.voix = "micro rouvert après la phrase 1 : " + (reopened ? "oui en " + (Mic.reopenMs || "?") + " ms" : "NON") + " · mode retenu : " + micMode();
+    mtOut((reopened ? "✅ Après la phrase 1, le micro s’est rouvert tout seul en " + (Mic.reopenMs || "?") + " ms." : "❌ Le micro ne s’est pas rouvert tout seul après la phrase 1.") + " Quelle phrase grésillait ? Normalement : seulement la phrase 2. Dis-le-moi avec le rapport.", reopened ? "ok" : "bad");
+    mtReport();
   });
   function mtWakeToggle() {
     if (MT.wakeOn) {
@@ -4135,6 +4366,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     openMicTest();
   });
   if (/[?&]mictest=1/.test(location.search)) setTimeout(openMicTest, 300);
+  window.leoDebug = { Mic, HF, P };
   renderProfiles();
   let savedId = null;
   try {
