@@ -397,7 +397,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v36</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v37</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -479,6 +479,10 @@
         <div class="card">
           <h3>🎙️ Micro et mains libres</h3>
           <p class="note">Vérifie si Léo peut entendre sur cet appareil, et s’il peut écouter tout seul quand on dit « Léo ! ».</p>
+          <label>Micro pendant que Léo parle <select id="micModeSel">
+            <option value="ouvert">Ouvert : Léo t’écoute tout de suite (tablette récente)</option>
+            <option value="pause">En pause : si la voix grésille (vieil iPad)</option>
+          </select></label>
           <button type="button" id="openMicTest" class="small-btn">🎙️ Ouvrir le test du micro</button>
         </div>
         <div class="card">
@@ -1094,7 +1098,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     L.push(ageGuide(Number(profile.age)));
     L.push(levelGuide(profile.schoolClass));
     L.push("L'âge passe avant la classe pour la façon de parler (longueur, vocabulaire, jeux) ; la classe sert surtout à savoir ce qui est au programme. Si l'âge et la classe ne correspondent pas (enfant en avance ou en retard), ne le fais jamais remarquer.");
-    if (typeof R !== "undefined" && R.on) L.push("L'enfant te parle à travers ton visage de robot sur une tablette : tes réponses sont surtout écoutées. Fais court (2 ou 3 phrases), une seule question à la fois, et garde les dessins pour quand ils sont vraiment utiles.");
+    if (typeof R !== "undefined" && R.on) L.push("L'enfant te parle à travers ton visage de robot sur une tablette : tes réponses sont surtout écoutées. Fais très court : 1 ou 2 phrases courtes (environ 25 mots en tout), avec une seule question à la fin. Ta première phrase doit être courte (moins de 8 mots) et varier d'une fois à l'autre : l'enfant l'entend pendant que tu prépares la suite. Garde les dessins pour quand ils sont vraiment utiles.");
     L.push("Si l'enfant dit qu'il n'a pas compris, n'a pas entendu ou te demande de répéter : redis la même chose plus lentement et plus simplement, avec des mots plus faciles et un exemple concret, sans le lui reprocher. S'il ne comprend toujours pas, essaie une autre façon d'expliquer (un dessin, une comparaison, une histoire).");
     L.push("Tu es une intelligence artificielle, pas un humain : si l'enfant te le demande, dis-le simplement et gentiment. Tu es un compagnon d'apprentissage, pas un remplaçant de ses amis ou de sa famille : si l'enfant dit que tu es son seul ami ou qu'il préfère te parler qu'aux autres, réponds avec douceur et encourage-le à jouer et parler avec ses amis, sa famille et ses enseignants.");
     L.push("Adapte toujours tes explications à l'âge réel de l'enfant : un enfant en avance ou en difficulté doit être pris tel qu'il est.");
@@ -1636,7 +1640,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   let audioUnlocked = false, speakToken = 0, currentAudioUrl = null, ttsFailures = 0, finishPlayback = null;
-  let speechActive = false;
+  let speechActive = 0;
   const ttsCache = /* @__PURE__ */ new Map();
   function silentWavUrl() {
     const sr = 8e3, n = 400, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
@@ -1660,7 +1664,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   function stopSpeaking() {
     speakToken++;
-    speechActive = false;
+    speechActive = 0;
     if (synth) synth.cancel();
     try {
       player.pause();
@@ -1726,12 +1730,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   }
   async function speak(text, opts = {}) {
     const p = speakInner(text, opts);
-    speechActive = true;
+    speechActive++;
     const tok = speakToken;
     try {
       await p;
     } finally {
-      if (tok === speakToken) speechActive = false;
+      if (tok === speakToken) speechActive = Math.max(0, speechActive - 1);
     }
   }
   function cachedTts(seg, voice, style) {
@@ -1750,7 +1754,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     });
   }
   async function speakInner(text, opts = {}) {
-    stopSpeaking();
+    if (!opts.keep) stopSpeaking();
     const token = speakToken;
     const segs = [];
     for (const s of splitLang(text)) {
@@ -1779,6 +1783,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         const blobs = segs.map((s) => opts.cache ? cachedTts(s, aiVoice, opts.style) : fetchTts(s, aiVoice, opts.style));
         blobs.forEach((p) => p.catch(() => {
         }));
+        if (opts.after) {
+          try {
+            await opts.after;
+          } catch (e) {
+          }
+          if (token !== speakToken) return;
+        }
         for (let i = 0; i < segs.length; i++) {
           const blob = await blobs[i];
           if (token !== speakToken) return;
@@ -1797,6 +1808,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         if (ttsFailures <= 1 || opts.test) $("status").textContent = msg;
         $("voiceTestStatus").textContent = "⚠️ " + msg;
       }
+    }
+    if (opts.after) {
+      try {
+        await opts.after;
+      } catch (e) {
+      }
+      if (token !== speakToken) return;
     }
     for (const s of segs.slice(done)) speakBrowser(s.t, s.lang, voiceURI, rate);
   }
@@ -2175,6 +2193,52 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     });
     photoStatus.append(clear);
   }
+  async function readStream(response, early) {
+    let raw = "", buf = "";
+    const take = (chunk) => {
+      buf += chunk;
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (line.indexOf("data:") !== 0) continue;
+        const d = line.slice(5).trim();
+        if (!d || d === "[DONE]") continue;
+        try {
+          const j = JSON.parse(d);
+          const c = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+          if (c) raw += c;
+        } catch (e) {
+        }
+      }
+      if (early && !early.text) {
+        const m = raw.match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        if (m) {
+          const t = speechSource(cleanText(m[1])).trim();
+          if (t.length >= 3) {
+            early.text = t;
+            early.promise = speak(t);
+          }
+        }
+      }
+    };
+    if (response.body && response.body.getReader) {
+      const reader = response.body.getReader(), dec = new TextDecoder();
+      for (; ; ) {
+        const r = await reader.read();
+        if (r.done) break;
+        take(dec.decode(r.value, { stream: true }));
+      }
+      take(dec.decode() + "\n");
+    } else take(await response.text() + "\n");
+    return raw;
+  }
+  function restAfter(full, said) {
+    const f = full.replace(/\s+/g, " ").trim(), s = said.replace(/\s+/g, " ").trim();
+    if (f.indexOf(s) === 0) return f.slice(s.length).trim();
+    const tail = s.slice(-12), k = f.indexOf(tail);
+    return (k >= 0 ? f.slice(k + tail.length) : f.slice(s.length)).trim();
+  }
   async function sendMessage() {
     var _a, _b, _c;
     if (busy || !currentProfile()) return;
@@ -2204,15 +2268,21 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       ...conversation.map((m, i) => ({ role: m.role, content: forModel(m, i === lastDrawing) })),
       { role: "user", content: images.length ? [{ type: "text", text: sentText }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : sentText }
     ];
+    const early = { text: "", promise: null };
     try {
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-        body: JSON.stringify({ messages: requestMessages, fast: typeof R !== "undefined" && R.on && !images.length })
+        body: JSON.stringify({ messages: requestMessages, fast: R.on && !images.length, stream: !images.length })
       }, images.length ? 12e4 : 6e4);
       if (!response.ok) throw Error(response.status === 413 ? "Photos trop lourdes pour le serveur : envoie-en moins à la fois." : "Léo a eu un souci (erreur " + response.status + "). Réessaie.");
-      const data = await response.json();
-      const raw = (_c = (_b = (_a = data == null ? void 0 : data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content;
+      let raw;
+      if (/event-stream/.test(response.headers.get("content-type") || "")) {
+        raw = await readStream(response, settings.autoRead || viaVoice || R.on ? early : null);
+      } else {
+        const data = await response.json();
+        raw = (_c = (_b = (_a = data == null ? void 0 : data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content;
+      }
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
@@ -2225,7 +2295,13 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       const bubble = addMessage("assistant", reply, null, true, blocks);
       stickBottom = false;
       showTop(bubble);
-      if (settings.autoRead || viaVoice || R.on) speak(speechSource(reply));
+      if (settings.autoRead || viaVoice || R.on) {
+        const full = speechSource(reply);
+        if (early.text) {
+          const rest = restAfter(full, early.text);
+          if (rest) speak(rest, { keep: true, after: early.promise });
+        } else speak(full);
+      }
       robotOnReply(reply, blocks);
       const photoNote = images.length ? images.length > 1 ? " [" + images.length + " photos envoyées, non conservées]" : " [photo envoyée, non conservée]" : "";
       record("user", sentText + photoNote);
@@ -2239,6 +2315,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         if (R.on) robotPanel(conversation[conversation.length - 1].blocks);
       }
     } catch (error) {
+      if (early.text) stopSpeaking();
       pending.remove();
       input.value = text;
       autoGrow();
@@ -2868,11 +2945,11 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   function robotState() {
     const now = Date.now();
     if (R.recording || document.activeElement === rob("robotInput")) return "listening";
-    if (busy) return "thinking";
     if (speakingNow()) {
       R.awaitingVoice = 0;
       return "speaking";
     }
+    if (busy) return "thinking";
     if (R.awaitingVoice && now < R.awaitingVoice) return "thinking";
     if (HF.on && !HF.testOnly && Mic.live && HF.mode === "convo") return "listening";
     if (now < R.happyUntil) return "happy";
@@ -3419,9 +3496,9 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     lastBlockAt: 0,
     events: []
   };
-  const MIC_MODE_KEY = "leo_mic_mode_v34";
+  const MIC_MODE_KEY = "leo_mic_mode_v37";
   function micMode() {
-    return readJSON(MIC_MODE_KEY, "pause");
+    return readJSON(MIC_MODE_KEY, OLD_DEVICE ? "pause" : "ouvert");
   }
   function micBeforeSpeak() {
     if (!Mic.live || Mic.paused || Mic.forceOpen || micMode() !== "pause") return;
@@ -3807,10 +3884,10 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   function hfOnBlock(d, rms, dur) {
     if (!HF.on && !HF.testOnly) return;
     const now = Date.now(), ms = dur * 1e3;
-    const blocked = !HF.testOnly && (busy || now < R.awaitingVoice || R.recording || !currentProfile() || rob("robotWhoPanel").classList.contains("open")) || speakingNow() || HF.pending;
+    const blocked = !HF.testOnly && (busy || now < R.awaitingVoice || R.recording || !currentProfile() || rob("robotWhoPanel").classList.contains("open")) || speakingNow() || speechActive > 0 || HF.pending;
     if (blocked) {
       if (HF.capturing) hfReset();
-      HF.muteUntil = now + 700;
+      HF.muteUntil = now + (micMode() === "pause" ? 700 : 300);
       if (HF.mode === "convo") HF.convoUntil = now + 25e3;
       HF.wasBlocked = true;
       return;
@@ -3874,7 +3951,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         HF.partialBusy = false;
       });
     }
-    if (HF.silentMs >= (HF.mode === "wake" ? 600 : 800) || HF.capMs >= 12e3) hfFinish();
+    if (HF.silentMs >= (HF.mode === "wake" ? 600 : OLD_DEVICE ? 800 : 700) || HF.capMs >= 12e3) hfFinish();
   }
   function hfCanSend() {
     const now = Date.now();
@@ -4433,6 +4510,11 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     openMicTest();
   });
   if (/[?&]mictest=1/.test(location.search)) setTimeout(openMicTest, 300);
+  $("micModeSel").value = micMode();
+  $("micModeSel").addEventListener("focus", () => {
+    $("micModeSel").value = micMode();
+  });
+  $("micModeSel").addEventListener("change", (e) => saveJSON(MIC_MODE_KEY, e.target.value));
   window.leoDebug = { Mic, HF, P };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
