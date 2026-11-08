@@ -337,6 +337,24 @@
   #robot:not(.with-panel) #robotStatus { margin-top: 18px; }
   #robot:not(.with-panel) #robotSub { margin-bottom: 10px; }
   @media (orientation: landscape) { #robotFaceBox { width: min(90vw, calc((100vh - 330px) * 0.97), 900px) !important; } }
+
+  /* ---------- Relief / 3D (v47) ---------- */
+  .face .sclera { stroke: #1a2f7a; stroke-width: 3; filter: drop-shadow(0 10px 12px rgba(8, 22, 80, .45)) drop-shadow(0 2px 2px rgba(8, 22, 80, .3)); }
+  .face .iris { stroke: #12245f; stroke-width: 2.5; }
+  .face .hl { fill: #ffffff; filter: drop-shadow(0 0 4px rgba(255,255,255,.9)); }
+  .face .hlarc { fill: none; stroke: #ffffff; stroke-width: 4; stroke-linecap: round; opacity: .55; }
+  .face .brow path { stroke: url(#browGrad); stroke-width: 13; filter: drop-shadow(0 5px 4px rgba(8, 22, 80, .45)); }
+  .face .nose { fill: url(#noseGrad); filter: drop-shadow(0 4px 3px rgba(8, 22, 80, .45)); }
+  .face .noseHl { fill: #ffffff; opacity: .45; }
+  .face .blush { fill: url(#blushGrad); opacity: .55; }
+  .face.happy .blush, .face.excited .blush { opacity: .9; }
+  .face .mouth, .face.happy .mouth, .face.excited .mouth { fill: url(#mouthGrad); stroke: #0b1640; stroke-width: 4; filter: drop-shadow(0 6px 5px rgba(8, 22, 80, .45)) drop-shadow(0 -1px 0 rgba(255,255,255,.35)); }
+  .face .tongue { fill: url(#tongueGrad); }
+  .face .happyEye { stroke: url(#browGrad); filter: drop-shadow(0 5px 4px rgba(8, 22, 80, .45)); }
+  /* écran : reflet de vitre et bords plus sombres, comme un écran bombé */
+  #robot::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+    background: linear-gradient(125deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.06) 28%, rgba(255,255,255,0) 42%); }
+  #robot::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1; box-shadow: inset 0 0 140px rgba(5, 15, 60, .55); }
 </style>
 </head>
 <body>
@@ -391,7 +409,15 @@
         <radialGradient id="irisGrad" cx="50%" cy="65%" r="62%">
           <stop offset="0%" stop-color="#7dd3fc"/><stop offset="50%" stop-color="#3b82f6"/><stop offset="85%" stop-color="#1d4ed8"/><stop offset="100%" stop-color="#1e3a8a"/>
         </radialGradient>
-        <radialGradient id="scleraGrad" cx="50%" cy="40%" r="65%"><stop offset="70%" stop-color="#ffffff"/><stop offset="100%" stop-color="#dbeafe"/></radialGradient>
+        <radialGradient id="scleraGrad" cx="42%" cy="34%" r="72%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#f3f7ff"/><stop offset="85%" stop-color="#c9d8f6"/><stop offset="100%" stop-color="#9fb6e6"/></radialGradient>
+        <linearGradient id="lidShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0b1a52" stop-opacity=".45"/><stop offset="32%" stop-color="#0b1a52" stop-opacity="0"/></linearGradient>
+        <radialGradient id="pupilGrad" cx="45%" cy="40%" r="60%"><stop offset="0%" stop-color="#1b2a63"/><stop offset="100%" stop-color="#050a1f"/></radialGradient>
+        <radialGradient id="irisGlow" cx="50%" cy="85%" r="55%"><stop offset="0%" stop-color="#a5f3fc" stop-opacity=".75"/><stop offset="100%" stop-color="#a5f3fc" stop-opacity="0"/></radialGradient>
+        <linearGradient id="browGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3550b8"/><stop offset="100%" stop-color="#0b1640"/></linearGradient>
+        <linearGradient id="noseGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2c43a0"/><stop offset="100%" stop-color="#0b1640"/></linearGradient>
+        <linearGradient id="mouthGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#050a24"/><stop offset="100%" stop-color="#22307a"/></linearGradient>
+        <radialGradient id="tongueGrad" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="#fbcfe8"/><stop offset="45%" stop-color="#f472b6"/><stop offset="100%" stop-color="#be185d"/></radialGradient>
+        <radialGradient id="blushGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#f9a8d4" stop-opacity=".85"/><stop offset="100%" stop-color="#f9a8d4" stop-opacity="0"/></radialGradient>
         <clipPath id="eyeClip"><ellipse rx="52" ry="58"/></clipPath>
         <clipPath id="mouthClip"><path id="mouthClipPath" d="M158 262 Q200 270 242 262 Q200 300 158 262Z"/></clipPath>
       </defs>
@@ -402,19 +428,21 @@
       <!-- yeux : blanc + grand iris bleu + pupille + reflets -->
       <g transform="translate(128 150)"><g class="eye" id="eyeL">
         <ellipse class="sclera" rx="54" ry="60"/>
-        <g clip-path="url(#eyeClip)"><g id="irisL"><circle r="44" fill="url(#irisGrad)"/><circle r="23" class="pupil"/>
-          <circle class="hl" cx="14" cy="-15" r="11"/><circle class="hl small" cx="-13" cy="14" r="5"/></g></g>
+        <g clip-path="url(#eyeClip)"><g id="irisL"><circle r="44" fill="url(#irisGrad)" class="iris"/><circle r="44" fill="url(#irisGlow)"/><circle r="23" fill="url(#pupilGrad)" class="pupil"/>
+          <circle class="hl" cx="14" cy="-15" r="11"/><circle class="hl small" cx="-13" cy="14" r="5"/><path class="hlarc" d="M-30 -14 Q-24 -30 -8 -36"/></g>
+          <ellipse class="lid" rx="54" ry="60" fill="url(#lidShade)"/></g>
       </g></g>
       <g transform="translate(272 150)"><g class="eye" id="eyeR">
         <ellipse class="sclera" rx="54" ry="60"/>
-        <g clip-path="url(#eyeClip)"><g id="irisR"><circle r="44" fill="url(#irisGrad)"/><circle r="23" class="pupil"/>
-          <circle class="hl" cx="14" cy="-15" r="11"/><circle class="hl small" cx="-13" cy="14" r="5"/></g></g>
+        <g clip-path="url(#eyeClip)"><g id="irisR"><circle r="44" fill="url(#irisGrad)" class="iris"/><circle r="44" fill="url(#irisGlow)"/><circle r="23" fill="url(#pupilGrad)" class="pupil"/>
+          <circle class="hl" cx="14" cy="-15" r="11"/><circle class="hl small" cx="-13" cy="14" r="5"/><path class="hlarc" d="M-30 -14 Q-24 -30 -8 -36"/></g>
+          <ellipse class="lid" rx="54" ry="60" fill="url(#lidShade)"/></g>
       </g></g>
       <path class="happyEye" d="M80 162 Q128 108 176 162"/><path class="happyEye" d="M224 162 Q272 108 320 162"/>
       <!-- petit nez -->
-      <path class="nose" d="M189 216 Q200 210 211 216 Q208 228 200 231 Q192 228 189 216Z"/>
+      <path class="nose" d="M189 216 Q200 210 211 216 Q208 228 200 231 Q192 228 189 216Z"/><ellipse class="noseHl" cx="196" cy="216" rx="4" ry="2"/>
       <!-- joues -->
-      <g class="blush"><ellipse cx="78" cy="236" rx="24" ry="12"/><ellipse cx="322" cy="236" rx="24" ry="12"/></g>
+      <g class="blush"><ellipse cx="78" cy="236" rx="30" ry="17"/><ellipse cx="322" cy="236" rx="30" ry="17"/></g>
       <!-- bouche souriante qui parle + langue -->
       <g class="mouthG">
         <path class="mouth" id="mouth" d="M158 262 Q200 270 242 262 Q200 300 158 262Z"/>
@@ -512,7 +540,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v46</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v49</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1279,7 +1307,7 @@ je | chante | chantais
 </tableau>
 Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | cm | mm).`);
     L.push(`4) Anglais : mets chaque mot ou phrase en anglais entre <en> et </en> (ex : Le matin, on dit <en>Good morning</en>.) pour qu'il soit lu avec un vrai accent anglais. Quand l'enfant s'entraîne, parle-lui en anglais simple et traduis si besoin.`);
-    L.push(`5) Dictée : quand l'enfant veut faire une dictée, mets le texte entre <dictee> et </dictee>, découpé en morceaux de 3 à 7 mots séparés par |, avec toute la ponctuation. L'appli le lit à voix haute SANS l'afficher : n'écris JAMAIS le texte de la dictée ailleurs dans ta réponse. Choisis un texte adapté à son niveau (CP : 1 ou 2 phrases très simples ; CE1-CE2 : 2 à 4 phrases ; CM et collège : 4 à 8 phrases), de préférence sur ses difficultés d'orthographe, ou reprends exactement le texte ou la liste de mots de sa leçon s'il te le donne. Dis-lui en une phrase : appuie sur Commencer, écris chaque morceau sur ton cahier, puis tape ou photographie ta dictée et envoie-la. Quand il l'envoie, compare mot à mot avec le texte original (il est dans l'historique), donne le nombre de fautes, écris le texte correct, puis explique les 2 ou 3 fautes les plus importantes avec la règle, et félicite ce qui est réussi.`);
+    L.push(`5) Dictée : quand l'enfant veut faire une dictée, mets le texte entre <dictee> et </dictee>, découpé en morceaux de 3 à 7 mots séparés par |, avec toute la ponctuation. L'appli le lit à voix haute SANS l'afficher : n'écris JAMAIS le texte de la dictée ailleurs dans ta réponse. Choisis un texte adapté à son niveau (CP : 1 ou 2 phrases très simples ; CE1-CE2 : 2 à 4 phrases ; CM et collège : 4 à 8 phrases), de préférence sur ses difficultés d'orthographe, ou reprends exactement le texte ou la liste de mots de sa leçon s'il te le donne. Dis-lui en une phrase de prendre son cahier et de dire « c'est parti » quand il est prêt : tu liras chaque morceau normalement puis lentement mot par mot, et il peut te dire « attends », « répète » ou « continue ». À la fin il te montre sa dictée en photo ou l'écrit. Quand il l'envoie, compare mot à mot avec le texte original (il est dans l'historique), donne le nombre de fautes, écris le texte correct, puis explique les 2 ou 3 fautes les plus importantes avec la règle, et félicite ce qui est réussi.`);
     L.push("");
     L.push(`Calculs : avant de dire qu'une réponse est juste ou fausse, refais toujours le calcul. Si un message de l'enfant contient [Vérification automatique : ...], c'est l'appli qui a fait le calcul : si le message est bien la réponse à ce calcul, fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de cette mention et ne la recopie jamais. Si la réponse est juste, commence par le dire clairement (par exemple "Bravo, c'est juste !") et n'utilise jamais "presque" ou "pas tout à fait". Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
     L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : ils viennent d'une transcription automatique qui peut se tromper (mot mal entendu, mot anglais à la place du mot français comme « banana » pour « banane », mot coupé, homonyme). Si une réponse ressemble à la bonne par le son ou par le sens, considère que c'est la machine qui a mal entendu : compte-la juste. Si tu ne peux vraiment pas deviner, dis gentiment « je ne suis pas sûr d'avoir bien entendu, tu peux répéter ? », sans jamais compter faux à cause du micro. Ne parle jamais de cette mention.`);
@@ -2322,41 +2350,182 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     wrap.append(t);
     return wrap;
   }
+  let activeDictee = null;
+  function dicteeSlow(t) {
+    const P2 = { ",": "virgule", ".": "point", ";": "point-virgule", ":": "deux-points", "!": "point d'exclamation", "?": "point d'interrogation", "…": "points de suspension", "«": "ouvrez les guillemets", "»": "fermez les guillemets" };
+    const toks = String(t).replace(/([,.;:!?…«»])/g, " $1 ").split(/\s+/).filter(Boolean);
+    return toks.map((w) => P2[w] || w).join(", ") + ".";
+  }
+  function dicteePlain(t) {
+    return String(t).replace(/[«»]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  const dWait = (ms) => new Promise((r) => setTimeout(r, ms));
   function renderDictee(groups) {
     const box = el("div", "dictee"), info = el("div", "dinfo"), row = el("div", "drow");
-    const play = el("button"), again = el("button", "grey", "🔁 Répéter"), all = el("button", "grey", "📖 Tout relire");
-    [play, again, all].forEach((b) => {
+    const play = el("button"), pause = el("button", "grey"), again = el("button", "grey", "🔁 Répéter"), all = el("button", "grey", "📖 Tout relire");
+    [play, pause, again, all].forEach((b) => {
       b.type = "button";
     });
-    let idx = 0;
+    const D = { idx: 0, running: false, paused: false, run: 0, done: false, said: -1 };
     const update = () => {
-      info.textContent = idx === 0 ? "✍️ Dictée prête : " + groups.length + " morceaux. Prends ton cahier !" : idx < groups.length ? "Morceau " + idx + " sur " + groups.length + " : écris-le, puis appuie sur Suivant." : "✅ Fini ! Relis-toi, puis écris ou photographie ta dictée et envoie-la à Léo.";
-      play.textContent = idx === 0 ? "▶️ Commencer" : "▶️ Suivant";
-      play.disabled = idx >= groups.length;
-      again.disabled = idx === 0;
+      info.textContent = D.done ? "✅ Fini ! Relis-toi, puis montre ta dictée à Léo (photo ou texte)." : D.idx === 0 && !D.running ? "✍️ Dictée prête : " + groups.length + " morceaux. Prends ton cahier !" : (D.paused ? "⏸ En pause — dis « continue » ou appuie sur ▶️. " : "") + "Morceau " + Math.min(D.idx + 1, groups.length) + " sur " + groups.length;
+      play.textContent = D.idx === 0 && !D.running ? "▶️ Commencer" : D.paused ? "▶️ Continuer" : "⏭ Suivant";
+      pause.textContent = "⏸ Attends";
+      pause.style.display = D.running && !D.paused && !D.done ? "" : "none";
+      play.disabled = D.done;
+      again.disabled = !D.running && D.idx === 0;
     };
-    const say = (t, rate) => {
-      unlockSpeech();
-      speak(dicteeSpeech(t), { style: "dictee", rate });
-    };
-    play.addEventListener("click", () => {
-      if (idx < groups.length) {
-        say(groups[idx], 0.85);
-        idx++;
+    const say = (t, o) => speak(t, Object.assign({ cache: false }, o));
+    async function dictate(n, id) {
+      const g = groups[n];
+      await say(dicteePlain(g), { rate: 0.9 });
+      if (id !== D.run) return false;
+      await dWait(3e3);
+      if (id !== D.run) return false;
+      await say(dicteeSlow(g), { style: "dictee", rate: 0.85 });
+      return id === D.run;
+    }
+    async function loop(skipFirst) {
+      const id = ++D.run;
+      D.running = true;
+      D.paused = false;
+      activeDictee = ctrl;
+      update();
+      while (D.idx < groups.length && id === D.run) {
+        if (skipFirst) skipFirst = false;
+        else if (!await dictate(D.idx, id)) return;
+        D.said = D.idx;
+        const words = groups[D.idx].split(/\s+/).length;
+        await dWait(2500 + words * 1100);
+        if (id !== D.run) return;
+        D.idx++;
         update();
       }
+      if (id !== D.run) return;
+      D.done = true;
+      update();
+      await say("Fin de la dictée. Je relis tout, suis bien avec ton doigt.", {});
+      if (id !== D.run) return;
+      await dWait(1500);
+      await say(groups.map(dicteePlain).join(" "), { rate: 0.85 });
+      if (id === D.run) {
+        await say("Relis-toi bien, puis montre-moi ta dictée.", {});
+        D.running = false;
+        update();
+      }
+    }
+    const ctrl = {
+      active: () => D.running && !D.done,
+      ready: () => !D.running && !D.done,
+      start() {
+        if (D.done) return;
+        if (D.paused || !D.running) {
+          if (D.paused && D.said === D.idx && D.idx < groups.length - 1) D.idx++;
+          stopSpeaking();
+          loop();
+        }
+      },
+      next() {
+        if (D.done) return;
+        stopSpeaking();
+        if (D.paused) {
+          ctrl.start();
+          return;
+        }
+        if (D.running) D.idx = Math.min(groups.length - 1, D.idx + 1);
+        loop();
+      },
+      pause() {
+        if (!D.running || D.done) return;
+        D.run++;
+        D.paused = true;
+        stopSpeaking();
+        update();
+        say("D’accord, j’attends. Dis « continue » quand tu es prêt.", {});
+      },
+      repeat() {
+        if (D.done) {
+          ctrl.readAll();
+          return;
+        }
+        const id = ++D.run;
+        D.paused = true;
+        stopSpeaking();
+        update();
+        dictate(Math.min(D.idx, groups.length - 1), id).then((ok) => {
+          if (ok && id === D.run) {
+            D.said = D.idx;
+            loop(true);
+          }
+        });
+      },
+      readAll() {
+        D.run++;
+        stopSpeaking();
+        D.paused = !D.done;
+        update();
+        say(groups.map(dicteePlain).join(" "), { rate: 0.85 });
+      }
+    };
+    play.addEventListener("click", () => {
+      unlockSpeech();
+      if (D.idx === 0 && !D.running || D.paused) ctrl.start();
+      else ctrl.next();
     });
+    pause.addEventListener("click", () => ctrl.pause());
     again.addEventListener("click", () => {
-      if (idx > 0) say(groups[idx - 1], 0.85);
+      unlockSpeech();
+      ctrl.repeat();
     });
     all.addEventListener("click", () => {
       unlockSpeech();
-      speak(groups.join(" "), { style: "dictee", rate: 0.95 });
+      ctrl.readAll();
     });
-    row.append(play, again, all);
+    row.append(play, pause, again, all);
     box.append(info, row);
+    activeDictee = ctrl;
     update();
     return box;
+  }
+  function voiceCommand(text) {
+    const t = String(text).toLowerCase().replace(/[’`]/g, "'").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z' ]/g, " ").replace(/\s+/g, " ").replace(/\b(c|j|d|l) ?' ?/g, "$1'").trim();
+    const d = activeDictee;
+    if (d && d.ready() && /^(c'?est parti|on commence|on y va|commence|vas y|je suis pret|pret|oui|ok|go)\b/.test(t)) {
+      d.start();
+      return true;
+    }
+    if (d && d.active()) {
+      if (/^(c'?est parti|on commence|commence|vas y|go)\b/.test(t)) {
+        d.start();
+        return true;
+      }
+      if (/^(attends?|attend|pause|stop|une minute|deux secondes|pas si vite|moins vite)\b/.test(t)) {
+        d.pause();
+        return true;
+      }
+      if (/^(continue|suivant|la suite|apres|c'?est bon|ok|d'?accord|j'?ai (fini|ecrit)|on continue)\b/.test(t)) {
+        d.next();
+        return true;
+      }
+      if (/^(repete|redis|encore|j'?ai pas (compris|entendu)|quoi|tu peux repeter)\b/.test(t)) {
+        d.repeat();
+        return true;
+      }
+      if (/(relis|tout relire|relire tout)/.test(t)) {
+        d.readAll();
+        return true;
+      }
+      return true;
+    }
+    if (d && /(relis (tout|la dictee)|relire la dictee)/.test(t)) {
+      d.readAll();
+      return true;
+    }
+    if (/^(ferme|enleve|cache) (le |la |ca|ce )?(dessin|tableau|panneau|operation|ca)?\b/.test(t) && rob("robotPanel").classList.contains("open")) {
+      closePanel();
+      return true;
+    }
+    return false;
   }
   function renderBlock(b) {
     if (!validBlock(b)) return null;
@@ -2990,6 +3159,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     summarize(activeId);
     conversation = [];
     saveJSON(historyKey(activeId), conversation);
+    if (activeDictee && activeDictee.active()) activeDictee.pause();
+    activeDictee = null;
     stopSpeaking();
     displayConversation();
   });
@@ -3653,6 +3824,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         return;
       }
       rob("robotHeard").textContent = "🗣️ " + said;
+      if (voiceCommand(said)) {
+        R.awaitingVoice = 0;
+        return;
+      }
       if (isRepeat(said) && R.lastReply) {
         R.awaitingVoice = 0;
         robotStatus("Je répète…");
@@ -3695,11 +3870,23 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     box.replaceChildren(...list.map(renderBlock).filter(Boolean));
     rob("robotPanel").classList.add("open");
     rob("robot").classList.add("with-panel");
+    requestAnimationFrame(fitFace);
   }
   function closePanel() {
     rob("robotPanel").classList.remove("open");
     rob("robot").classList.remove("with-panel");
+    fitFace();
   }
+  function fitFace() {
+    const box = rob("robotFaceBox"), panel = rob("robotPanel");
+    if (!rob("robot").classList.contains("with-panel") || innerWidth > innerHeight) {
+      box.style.width = "";
+      return;
+    }
+    const free = innerHeight - panel.offsetHeight - 48 - 70 - 24;
+    box.style.width = Math.max(200, Math.min(innerWidth * 0.94, free * 0.97)) + "px";
+  }
+  addEventListener("resize", fitFace);
   function robotOnError() {
     if (R.on) {
       R.awaitingVoice = 0;
@@ -4338,6 +4525,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       HF.wasBlocked = false;
       hfIdleStatus();
     }
+    if (activeDictee && activeDictee.active()) HF.convoUntil = now + 25e3;
     if (HF.mode === "convo" && now > HF.convoUntil && !HF.capturing) {
       hfSetMode("wake");
       if (HF.onTest) HF.onTest("⏳ 25 s sans parler : Léo attend à nouveau « Léo ! »");
@@ -4545,6 +4733,15 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       h.className = "";
       h.dataset.said = text;
       h.textContent = "🗣️ " + text;
+    }
+    if (!test) {
+      const cmd = findWake(text) ? findWake(text).rest : text;
+      if ((mode === "convo" || activeDictee && (activeDictee.active() || activeDictee.ready()) || findWake(text)) && voiceCommand(cmd || text)) {
+        R.awaitingVoice = 0;
+        R.lastActivity = Date.now();
+        hfSetMode("convo");
+        return;
+      }
     }
     const w = findWake(text);
     if (test) {
@@ -4982,7 +5179,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO };
+  window.leoDebug = { Mic, HF, P, VO, voiceCommand };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
