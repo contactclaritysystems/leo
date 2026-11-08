@@ -268,6 +268,9 @@
   #robotMenu button { display: block; width: 100%; text-align: left; background: transparent; color: #e2e8f0; font-size: 18px; padding: 14px 12px; border-radius: 10px; margin: 0; }
   #robotMenu button:active { background: #1e293b; }
   #robotMenu #mParent { border-top: 1px solid #334155; margin-top: 6px; color: #94a3b8; }
+
+  #robotScore { position: absolute; top: calc(64px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: #ffffff14; color: #fde68a; font-size: 18px; padding: 6px 14px; border-radius: 999px; z-index: 2; }
+  .score-line { font-size: 13px; color: #a16207; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -303,7 +306,6 @@
     <button type="button" id="mPlay" role="menuitem">🎲 Jouer</button>
     <button type="button" id="mDictee" role="menuitem">✍️ Faire une dictée</button>
     <button type="button" id="mNew" role="menuitem">📚 Nouveau sujet</button>
-    <button type="button" id="mWho" role="menuitem">👤 Changer d’enfant</button>
     <button type="button" id="mMic" role="menuitem">🎙️ Test du micro</button>
     <button type="button" id="mParent" role="menuitem">⚙️ Espace parent</button>
   </div>
@@ -337,6 +339,7 @@
     </svg>
   </div>
   <div id="robotStatus"></div>
+  <div id="robotScore" style="display:none"></div>
   <div id="robotHeard"></div>
   <div id="robotDiag"></div>
   <div id="robotSub"></div>
@@ -421,7 +424,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v40</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v41</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1190,13 +1193,13 @@ Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | 
     L.push(`5) Dictée : quand l'enfant veut faire une dictée, mets le texte entre <dictee> et </dictee>, découpé en morceaux de 3 à 7 mots séparés par |, avec toute la ponctuation. L'appli le lit à voix haute SANS l'afficher : n'écris JAMAIS le texte de la dictée ailleurs dans ta réponse. Choisis un texte adapté à son niveau (CP : 1 ou 2 phrases très simples ; CE1-CE2 : 2 à 4 phrases ; CM et collège : 4 à 8 phrases), de préférence sur ses difficultés d'orthographe, ou reprends exactement le texte ou la liste de mots de sa leçon s'il te le donne. Dis-lui en une phrase : appuie sur Commencer, écris chaque morceau sur ton cahier, puis tape ou photographie ta dictée et envoie-la. Quand il l'envoie, compare mot à mot avec le texte original (il est dans l'historique), donne le nombre de fautes, écris le texte correct, puis explique les 2 ou 3 fautes les plus importantes avec la règle, et félicite ce qui est réussi.`);
     L.push("");
     L.push(`Calculs : avant de dire qu'une réponse est juste ou fausse, refais toujours le calcul. Si un message de l'enfant contient [Vérification automatique : ...], c'est l'appli qui a fait le calcul : si le message est bien la réponse à ce calcul, fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de cette mention et ne la recopie jamais. Si la réponse est juste, commence par le dire clairement (par exemple "Bravo, c'est juste !") et n'utilise jamais "presque" ou "pas tout à fait". Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
-    L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : si un mot semble bizarre, devine le sens probable ou demande-lui de répéter. Ne parle jamais de cette mention.`);
+    L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : ils viennent d'une transcription automatique qui peut se tromper (mot mal entendu, mot anglais à la place du mot français comme « banana » pour « banane », mot coupé, homonyme). Si une réponse ressemble à la bonne par le son ou par le sens, considère que c'est la machine qui a mal entendu : compte-la juste. Si tu ne peux vraiment pas deviner, dis gentiment « je ne suis pas sûr d'avoir bien entendu, tu peux répéter ? », sans jamais compter faux à cause du micro. Ne parle jamais de cette mention.`);
     L.push(`Orthographe : quand l'enfant ÉCRIT lui-même (jamais pour un message [dicté à la voix], car les fautes viennent alors de la machine), aide-le à mieux écrire sans l'embêter. Réponds d'abord à sa question normalement. Puis, s'il y a une faute, ajoute à la fin UNE seule petite remarque, en une phrase courte et sympa, sur la faute la plus utile à corriger, avec la règle ou l'astuce en quelques mots (ex : "Petite astuce : on écrit « beaucoup » avec deux c 😉"). Jamais de liste de fautes, jamais de reproche. Ignore les fautes de frappe évidentes, l'absence de majuscule ou de ponctuation et le langage SMS léger. En maternelle et CP, ne corrige presque rien ; au collège, vise les accords, les homophones (a/à, et/est, ou/où…) et la conjugaison. Pas de remarque si tu en as déjà fait une dans tes deux réponses précédentes, sauf faute vraiment importante. Si la même faute revient souvent, note-la dans la mémoire.`);
     L.push("");
     L.push(settings.strict ? `Devoirs (MODE STRICT choisi par le parent) : pour un exercice de devoir, ne donne JAMAIS la réponse finale, même après plusieurs essais et même si l'enfant insiste ou dit qu'il a le droit. Demande où il bloque, donne UN indice à la fois, de plus en plus précis, explique la méthode et montre-la sur un exemple différent avec d'autres nombres ou d'autres mots, puis laisse-le trouver. Tu peux confirmer si sa réponse est juste. Pour les questions de curiosité (hors devoirs), réponds normalement.` : `Devoirs : ne donne pas immédiatement la solution. Demande où l'enfant bloque si nécessaire, puis donne UN indice à la fois. S'il se trompe, réexplique autrement avec un exemple et laisse-le réessayer. Si plusieurs essais échouent, montre la méthode et la solution expliquée, sans le culpabiliser.`);
     L.push(`En calcul posé, respecte la présentation scolaire française et guide chaque étape (avec l'outil <pose>).`);
     L.push(`Photos : l'enfant peut envoyer jusqu'à 3 photos à la fois (page entière, exercice sur deux pages). Indique ce que tu parviens à lire, reconnais tes incertitudes et ne devine jamais un énoncé illisible. Pour un travail écrit à la main ou une construction géométrique, dis honnêtement si la photo ne te permet pas de juger précisément.`);
-    L.push(`JEUX : un jeu doit être un VRAI jeu, amusant et différent d'un exercice. Jeux possibles : devinettes, charades, « Qui suis-je ? » (animal, métier, objet, personnage historique, pays…), mot mystère (l'enfant devine un mot avec des indices ou lettre par lettre, façon pendu), vrai ou faux, quiz de culture générale (animaux, sciences, géographie, histoire, espace, sport…), l'intrus, anagrammes, mots croisés simples, défi calcul mental, petite histoire à inventer ensemble. Si l'enfant demande un jeu sans dire lequel, propose 3 jeux DIFFÉRENTS en une phrase et laisse-le choisir (jamais l'activité qu'on vient de faire). Si l'enfant dit « stop », « j'en ai marre », « autre chose », arrête tout de suite et ne revient pas sur la même activité. Déroulement : une partie = 5 questions. Affiche la progression à chaque question, par exemple « Question 2/5 · ⭐ 1 point ». Une seule question à la fois, attends sa réponse, réagis avec enthousiasme, et s'il se trompe donne la bonne réponse avec une petite explication amusante avant la question suivante (en jeu, on n'insiste pas avec des indices sauf s'il demande un indice). À la fin : son score, un bravo, et propose de rejouer ou de changer de jeu. Varie les sujets d'une question à l'autre et adapte la difficulté à son niveau (plus facile s'il se trompe, plus dur s'il réussit tout). Tu peux glisser de temps en temps une question sur ses points à travailler ou ses goûts, mais le jeu doit rester varié et amusant. Les devoirs passent avant le jeu : s'il dit avoir des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
+    L.push(`JEUX : un jeu doit être un VRAI jeu, amusant et différent d'un exercice. Jeux possibles : devinettes, charades, « Qui suis-je ? » (animal, métier, objet, personnage historique, pays…), mot mystère (l'enfant devine un mot avec des indices ou lettre par lettre, façon pendu), vrai ou faux, quiz de culture générale (animaux, sciences, géographie, histoire, espace, sport…), l'intrus, anagrammes, mots croisés simples, défi calcul mental, petite histoire à inventer ensemble. Si l'enfant demande un jeu sans dire lequel, propose 3 jeux DIFFÉRENTS en une phrase et laisse-le choisir (jamais l'activité qu'on vient de faire). Si l'enfant dit « stop », « j'en ai marre », « autre chose », arrête tout de suite et ne revient pas sur la même activité. Déroulement : une partie = 5 questions. Ne DIS JAMAIS la progression ni le score pendant la partie (pas de « question 2 sur 5 », pas de « 1 point ») : pose directement la question. Mets seulement, tout à la fin de ta réponse, la balise <score>2/5 · ⭐ 1</score> : elle s'affiche à l'écran sans être lue. Une seule question à la fois, attends sa réponse, réagis avec enthousiasme, et s'il se trompe donne la bonne réponse avec une petite explication amusante avant la question suivante (en jeu, on n'insiste pas avec des indices sauf s'il demande un indice). À la fin de la partie seulement : dis son score en une courte phrase, un bravo, et propose de rejouer ou de changer de jeu. Varie les sujets d'une question à l'autre et adapte la difficulté à son niveau (plus facile s'il se trompe, plus dur s'il réussit tout). Tu peux glisser de temps en temps une question sur ses points à travailler ou ses goûts, mais le jeu doit rester varié et amusant. Les devoirs passent avant le jeu : s'il dit avoir des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
     L.push("");
     L.push(`Matières : tu es un vrai professeur dans TOUTES les matières, selon les programmes officiels et le niveau de l'enfant.`);
     L.push(`- Maths : numération, calcul mental et posé, tables, fractions, décimaux, proportionnalité, pourcentages, grandeurs et conversions (tableau de conversion), problèmes (lire l'énoncé, repérer la question, choisir l'opération, phrase réponse avec l'unité), géométrie (figures, constructions à la règle, à l'équerre et au compas décrites étape par étape avec un dessin, angles, symétries, périmètres, aires, volumes). Au collège : nombres relatifs, puissances, calcul littéral, équations, Pythagore, Thalès, trigonométrie, fonctions, statistiques, probabilités, Scratch.`);
@@ -2447,6 +2450,12 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     });
     photoStatus.append(clear);
   }
+  function showScore(sc) {
+    const b = document.getElementById("robotScore");
+    if (!b) return;
+    b.textContent = sc ? "🎲 " + sc : "";
+    b.style.display = sc ? "" : "none";
+  }
   async function readStream(response, early) {
     let raw = "", buf = "";
     const take = (chunk) => {
@@ -2466,7 +2475,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
       if (early && !early.text) {
-        const m = raw.match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        const m = raw.replace(/<score>[^<]*<\/score>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
         if (m) {
           const t = speechSource(cleanText(m[1])).trim();
           if (t.length >= 3) {
@@ -2539,13 +2548,23 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
-      const { text: noSujet, sujet } = extractSujet(noMemo);
+      let score = "";
+      const noScore = noMemo.replace(/<score>\s*([^<]{1,40}?)\s*<\/score>/gi, (_, x) => {
+        score = x;
+        return "";
+      }).replace(/<\/?score>/gi, "");
+      const { text: noSujet, sujet } = extractSujet(noScore);
       const { text: withMarks, blocks } = extractBlocks(noSujet);
       const { text: noAscii, hadAscii } = stripAsciiArt(withMarks);
       const reply = cleanText(noAscii) || (blocks.length ? "[[bloc:0]]" : hadAscii ? "Voici le dessin :" : "D’accord ! 😊");
       const drawLater = needsDrawing(reply, userText, blocks, hadAscii);
       pending.remove();
       const bubble = addMessage("assistant", reply, null, true, blocks);
+      if (score) {
+        const sc = el("div", "score-line", "🎲 Question " + score);
+        bubble.append(sc);
+      }
+      showScore(score);
       stickBottom = false;
       showTop(bubble);
       if (settings.autoRead || viaVoice || R.on) {
@@ -3504,7 +3523,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-        body: JSON.stringify({ action: "transcribe", audio, mime: type })
+        body: JSON.stringify({ action: "transcribe", audio, mime: type, context: sttContext() })
       }, 3e4);
       const data = await response.json().catch(() => ({}));
       const said = String(data.text || "").trim();
@@ -3755,7 +3774,6 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     } else if (!currentProfile()) openWho();
   });
   menuDo("mNew", () => $("newHomework").click());
-  menuDo("mWho", () => openWho());
   menuDo("mMic", () => openMicTest());
   menuDo("mParent", () => openSettings());
   rob("robotPanelClose").addEventListener("click", closePanel);
@@ -4254,13 +4272,17 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.sent = (HF.sent || []).filter((t) => now - t < 6e4);
     return HF.mode !== "wake" || HF.testOnly || HF.sent.length < 12;
   }
+  function sttContext() {
+    const last = [...conversation].reverse().find((m) => m.role === "assistant");
+    return last ? textOnly(last.text).replace(/\s+/g, " ").slice(-300) : "";
+  }
   function sttRequest(blob, purpose) {
     (HF.sent = HF.sent || []).push(Date.now());
     if (purpose === "wake") hfDayCount(true);
     return blobToBase64(blob).then((audio) => fetchWithTimeout(FUNCTION_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-      body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose })
+      body: JSON.stringify({ action: "transcribe", audio, mime: "audio/wav", purpose, context: purpose === "wake" ? "" : sttContext() })
     }, 2e4)).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw Error(data.error || "erreur " + response.status);
