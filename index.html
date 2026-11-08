@@ -395,7 +395,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v34</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v35</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -3464,6 +3464,19 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
         saveJSON(MIC_MODE_KEY, "ouvert");
         micLog("réouverture lente (iOS a peut-être redemandé l’autorisation) : le micro restera ouvert");
       }
+      const b0 = Mic.blocks;
+      setTimeout(() => {
+        if (Mic.paused || !Mic.live) return;
+        if (Mic.blocks - b0 < 3 || Mic.zeroBlocks >= Mic.blocks - b0) {
+          micLog("micro rouvert mais sourd → il restera ouvert");
+          saveJSON(MIC_MODE_KEY, "ouvert");
+          micStop();
+          if (HF.on) {
+            HF.on = false;
+            hfAskTap("Touche l’écran une fois pour que je t’entende à nouveau.");
+          }
+        }
+      }, 1600);
       setTimeout(() => {
         if (Mic.ctx && Mic.ctx.state !== "running") {
           micLog("son en pause après réouverture");
@@ -3736,7 +3749,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return readJSON(HF_KEY, 0) === 1;
   }
   function hfThreshold() {
-    return Math.max(0.015, HF.floor * 3.2);
+    return Math.max(8e-3, HF.floor * 2.8);
   }
   function hfReset() {
     HF.capturing = false;
@@ -3807,7 +3820,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       HF.silentMs = 0;
       HF.speechMs += ms;
     } else HF.silentMs += ms;
-    if (!HF.spec && HF.silentMs >= 300 && HF.speechMs >= 300 && hfCanSend()) {
+    if (!HF.spec && HF.silentMs >= 300 && HF.speechMs >= 180 && hfCanSend()) {
       HF.spec = { p: sttRequest(encodeWav(HF.buf, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), sentAt: now };
       HF.spec.p.catch(() => {
       });
@@ -3887,7 +3900,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
   function hfFinish() {
     const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs, spec = HF.spec, endAt = Date.now() - HF.silentMs;
     hfReset();
-    if (speechMs < 300) return;
+    if (speechMs < (HF.mode === "wake" ? 180 : 250)) return;
     const now = Date.now();
     HF.checks = HF.checks.filter((t) => now - t < 6e4);
     if (HF.mode === "wake" && HF.checks.length >= 8) {
@@ -3901,15 +3914,25 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     HF.checks.push(now);
     if (!spec && !hfCanSend()) return;
+    if (HF.onTest) HF.onTest("🎙️ son capté (" + (capMs / 1e3).toFixed(1) + " s) → envoi…");
     hfTranscribe(spec ? spec.p : sttRequest(encodeWav(bufs, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), capMs, endAt);
   }
   const HALLU_RE = /amara|sous-titr|merci d['’]avoir regard|abonnez|un enfant parle [àa] l[ée]o|pour ses devoirs ou pour jouer|^\W*$/i;
+  const WAKE_TOKEN = /^(h?e|eh|ai)?(l|n)(e|i|y|ai|ei|ey|ea)h?s?(o|oh|ot|os|on|au|aux|eau|eaux|ow)$/;
   function findWake(text) {
-    const norm2 = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-    const words = String(text).split(/[\s,!.?;:…«»"]+/).filter(Boolean);
-    const idx = words.slice(0, 4).findIndex((w) => /^(leo|leon|leho|leyo|lheo|lio|leeo|leau)$/.test(norm2(w).replace(/['’]/g, "")));
-    if (idx < 0) return null;
-    return { rest: words.slice(idx + 1).join(" ").trim() };
+    const norm2 = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z]/g, "");
+    const words = String(text).replace(/['’]/g, " ").split(/[\s,!.?;:…«»"-]+/).filter(Boolean);
+    const skip = /^(he|hey|eh|ho|oh|allo|alors|coucou|bonjour|salut|dis|et|euh|bah|ben|hein|ok|okay|oui)$/;
+    let i = 0;
+    while (i < words.length && i < 3 && skip.test(norm2(words[i]))) i++;
+    for (let k = i; k < Math.min(words.length, i + 2); k++) {
+      for (const n of [1, 2, 3]) {
+        if (k + n > words.length) break;
+        const tok = norm2(words.slice(k, k + n).join(""));
+        if (tok.length <= 7 && WAKE_TOKEN.test(tok)) return { rest: words.slice(k + n).join(" ").trim() };
+      }
+    }
+    return null;
   }
   async function hfTranscribe(request, capMs, endAt) {
     const mode = HF.mode, test = HF.testOnly, t0 = endAt || Date.now();
@@ -3945,7 +3968,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       if (l) l.textContent = text ? "✍️ « " + text + " »" : "";
     }
     if (HALLU_RE.test(text) || text.length < 2) {
-      if (test && HF.onTest) HF.onTest("… " + (capMs / 1e3).toFixed(1) + " s de son → rien de compréhensible");
+      if (test && HF.onTest) HF.onTest("… " + (capMs / 1e3).toFixed(1) + " s de son → rien de compréhensible" + (text ? " (« " + text + " »)" : ""));
+      if (!test && mode === "wake" && R.on) {
+        const h = rob("robotHeard");
+        h.className = "ignored";
+        h.textContent = "👂 (son entendu, pas de mots compris)";
+      }
       if (!test && mode === "convo") {
         R.awaitingVoice = 0;
         hfIdleStatus();
