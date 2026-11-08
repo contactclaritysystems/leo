@@ -158,11 +158,16 @@
   .novv .face .eye, .novv .face .mouth, .novv .face .happyEye { filter: none; }
   .novv .face .glow { opacity: .09; }
   #robot .rtop .who { width: auto; padding: 0 14px; font-size: 16px; color: #cbd5e1; }
-  .rbar { position: absolute; top: calc(62px + env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; align-items: center; max-width: 760px; margin: 0 auto; }
+  .rctl { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; justify-content: center; align-items: center; }
+  .rctl button { width: 58px; height: 58px; border-radius: 50%; font-size: 24px; margin: 0 12px; background: #ffffff14; }
+  .rctl #robotMic { width: 88px; height: 88px; font-size: 40px; background: #2563eb; box-shadow: 0 0 0 6px #2563eb33; }
+  .rctl #robotMic.on { background: #dc2626; box-shadow: 0 0 0 10px #dc262655; }
+  .rbar { display: none; position: absolute; top: calc(62px + env(safe-area-inset-top)); left: 12px; right: 12px; align-items: center; max-width: 760px; margin: 0 auto; }
+  .rbar.show { display: flex; }
   .rbar input { flex: 1; min-width: 0; height: 46px; border-radius: 23px; padding: 0 16px; font-size: 17px; background: #0f172a; border: 1px solid #334155; color: #fff; }
   .rbar button { flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; font-size: 18px; margin-left: 8px; }
   .rbar button.grey { background: #ffffff14; }
-  #robot { padding-top: calc(120px + env(safe-area-inset-top)); }
+  #robot { padding-top: calc(60px + env(safe-area-inset-top)); padding-bottom: calc(118px + env(safe-area-inset-bottom)); }
   .whopanel { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: rgba(2,6,23,.92); display: none; align-items: center; justify-content: center; z-index: 5; padding: 20px; }
   .whopanel.open { display: flex; }
   .whobox { width: 100%; max-width: 640px; text-align: center; }
@@ -242,11 +247,15 @@
     <button type="button" id="robotSettings" aria-label="Espace parent">⚙️</button>
   </div>
   <form id="robotBar" class="rbar" autocomplete="off">
-    <input id="robotInput" type="text" enterkeyhint="send" placeholder="Écris ou dicte à Léo… (🎤 du clavier)" aria-label="Message à Léo">
+    <input id="robotInput" type="text" enterkeyhint="send" placeholder="Écris à Léo…" aria-label="Message à Léo">
     <button type="submit" id="robotSend" aria-label="Envoyer">➤</button>
-    <button type="button" id="robotRepeat" class="grey" aria-label="Répéter">🔁</button>
-    <button type="button" id="robotStop" class="grey" aria-label="Arrêter la voix">⏹</button>
   </form>
+  <div class="rctl">
+    <button type="button" id="robotRepeat" class="grey" aria-label="Répéter">🔁</button>
+    <button type="button" id="robotMic" aria-label="Parler à Léo">🎤</button>
+    <button type="button" id="robotStop" class="grey" aria-label="Arrêter la voix">⏹</button>
+    <button type="button" id="robotKbd" class="grey kbd" aria-label="Clavier" style="display:none">⌨️</button>
+  </div>
   <div id="robotFaceBox" role="button" aria-label="Touche le visage de Léo">
     <svg viewBox="0 0 400 300" id="robotFace" class="face idle">
       <circle class="ring" id="ring" cx="200" cy="150" r="170"/>
@@ -349,7 +358,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v31</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v32</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1014,6 +1023,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     L.push(levelGuide(profile.schoolClass));
     L.push("L'âge passe avant la classe pour la façon de parler (longueur, vocabulaire, jeux) ; la classe sert surtout à savoir ce qui est au programme. Si l'âge et la classe ne correspondent pas (enfant en avance ou en retard), ne le fais jamais remarquer.");
     if (typeof R !== "undefined" && R.on) L.push("L'enfant te parle à travers ton visage de robot sur une tablette : tes réponses sont surtout écoutées. Fais court (2 ou 3 phrases), une seule question à la fois, et garde les dessins pour quand ils sont vraiment utiles.");
+    L.push("Si l'enfant dit qu'il n'a pas compris, n'a pas entendu ou te demande de répéter : redis la même chose plus lentement et plus simplement, avec des mots plus faciles et un exemple concret, sans le lui reprocher. S'il ne comprend toujours pas, essaie une autre façon d'expliquer (un dessin, une comparaison, une histoire).");
     L.push("Tu es une intelligence artificielle, pas un humain : si l'enfant te le demande, dis-le simplement et gentiment. Tu es un compagnon d'apprentissage, pas un remplaçant de ses amis ou de sa famille : si l'enfant dit que tu es son seul ami ou qu'il préfère te parler qu'aux autres, réponds avec douceur et encourage-le à jouer et parler avec ses amis, sa famille et ses enseignants.");
     L.push("Adapte toujours tes explications à l'âge réel de l'enfant : un enfant en avance ou en difficulté doit être pris tel qu'il est.");
     L.push("");
@@ -1514,6 +1524,45 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return String(g).replace(/…/g, ", points de suspension. ").replace(/\.(\s|$)/g, ", point.$1").replace(/,(?! point)/g, ", virgule,").replace(/;/g, ", point-virgule,").replace(/:/g, ", deux-points,").replace(/!/g, ", point d'exclamation. ").replace(/\?/g, ", point d'interrogation. ").replace(/\s*«\s*/g, " ouvrez les guillemets ").replace(/\s*»/g, " fermez les guillemets ").replace(/\s+/g, " ").trim();
   }
   const player = new Audio();
+  let voiceEnv = null, envCtx = null;
+  function computeEnvelope(blob, url) {
+    try {
+      const C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return;
+      if (!envCtx) envCtx = new C();
+      const reader = new FileReader();
+      reader.onload = () => {
+        const done = (buf) => {
+          try {
+            const ch = buf.getChannelData(0), step = 0.03, n = Math.max(1, Math.floor(buf.sampleRate * step)), out = [];
+            for (let i = 0; i < ch.length; i += n) {
+              let s = 0, c = 0;
+              for (let j = i; j < i + n && j < ch.length; j += 4) {
+                s += ch[j] * ch[j];
+                c++;
+              }
+              out.push(Math.sqrt(s / Math.max(1, c)));
+            }
+            const sorted = out.slice().sort((a, b) => a - b), ref = sorted[Math.floor(sorted.length * 0.9)] || 1;
+            voiceEnv = { url, step, data: out.map((v) => {
+              const x = v / (ref || 1);
+              return x < 0.12 ? 0 : Math.min(1, Math.sqrt(x));
+            }) };
+          } catch (e) {
+          }
+        };
+        try {
+          const p = envCtx.decodeAudioData(reader.result, done, () => {
+          });
+          if (p && p.then) p.then(done, () => {
+          });
+        } catch (e) {
+        }
+      };
+      reader.readAsArrayBuffer(blob);
+    } catch (e) {
+    }
+  }
   let audioUnlocked = false, speakToken = 0, currentAudioUrl = null, ttsFailures = 0, finishPlayback = null;
   function silentWavUrl() {
     const sr = 8e3, n = 400, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
@@ -1576,6 +1625,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return new Promise((resolve, reject) => {
       if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
       currentAudioUrl = URL.createObjectURL(blob);
+      voiceEnv = null;
+      computeEnvelope(blob, currentAudioUrl);
       finishPlayback = resolve;
       player.onended = () => {
         finishPlayback = null;
@@ -1605,7 +1656,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       if (!t) continue;
       let chunk = "";
       for (const sentence of t.match(/[^.!?…]+[.!?…]*\s*/g) || [t]) {
-        if (chunk && (chunk + sentence).length > 220) {
+        const limit = segs.length === 0 ? 1 : 220;
+        if (chunk && (segs.length === 0 || (chunk + sentence).length > limit)) {
           segs.push({ lang: s.lang, t: chunk.trim() });
           chunk = "";
         }
@@ -2054,7 +2106,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + SUPABASE_ANON_KEY, "apikey": SUPABASE_ANON_KEY },
-        body: JSON.stringify({ messages: requestMessages })
+        body: JSON.stringify({ messages: requestMessages, fast: typeof R !== "undefined" && R.on && !images.length })
       }, images.length ? 12e4 : 6e4);
       if (!response.ok) throw Error(response.status === 413 ? "Photos trop lourdes pour le serveur : envoie-en moins à la fois." : "Léo a eu un souci (erreur " + response.status + "). Réessaie.");
       const data = await response.json();
@@ -2659,9 +2711,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     cancelRec: false,
     lastReply: "",
     questionUntil: 0,
-    excitedUntil: 0
+    excitedUntil: 0,
+    micLevel: 0,
+    cap: null,
+    syl: { until: 0, val: 0, wide: 0 }
   };
-  const CAN_RECORD = !!(navigator.mediaDevices && window.MediaRecorder);
+  const CAN_RECORD = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.MediaRecorder || window.AudioContext || window.webkitAudioContext));
   const rob = (id) => document.getElementById(id);
   function robotStatus(t) {
     rob("robotStatus").textContent = t || "";
@@ -2757,12 +2812,31 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     rob("browL").setAttribute("transform", st === "question" ? "translate(0 2) rotate(-8 125 43)" : "translate(0 ".concat(lift, ")"));
     rob("browR").setAttribute("transform", st === "question" ? "translate(0 -10) rotate(10 275 43)" : "translate(0 ".concat(lift, ")"));
     let target = 0;
-    if (st === "speaking") target = R.outAnalyser && !player.paused ? Math.min(1, level(R.outAnalyser) * 5) : 0.15 + Math.abs(Math.sin(now / 90)) * 0.45 + Math.abs(Math.sin(now / 37)) * 0.25;
-    R.mouth += (target - R.mouth) * 0.35;
-    rob("mouth").setAttribute("ry", (4 + R.mouth * 26).toFixed(1));
-    rob("mouth").setAttribute("rx", (34 - R.mouth * 8).toFixed(1));
-    if (R.recording && R.micAnalyser) {
-      const l = level(R.micAnalyser);
+    if (st === "speaking") {
+      if (!player.paused && voiceEnv && voiceEnv.url === player.src) {
+        const k = player.currentTime / voiceEnv.step, i = Math.floor(k), f = k - i;
+        target = (voiceEnv.data[i] || 0) * (1 - f) + (voiceEnv.data[i + 1] || 0) * f;
+        if (Math.abs(target - R.syl.val) > 0.25) {
+          R.syl.wide = Math.random();
+          R.syl.val = target;
+        }
+      } else if (R.outAnalyser && !player.paused) target = Math.min(1, level(R.outAnalyser) * 5);
+      else {
+        if (now > R.syl.until) {
+          const closing = R.syl.val > 0.25;
+          R.syl.val = closing ? Math.random() * 0.12 : 0.35 + Math.random() * 0.6;
+          R.syl.wide = Math.random();
+          R.syl.until = now + (closing ? 50 + Math.random() * 70 : 90 + Math.random() * 140) + (Math.random() < 0.08 ? 220 : 0);
+        }
+        target = R.syl.val;
+      }
+    }
+    R.mouth += (target - R.mouth) * 0.5;
+    const m = R.mouth;
+    rob("mouth").setAttribute("ry", (3 + m * 28).toFixed(1));
+    rob("mouth").setAttribute("rx", (32 - m * 10 + (m > 0.3 ? (R.syl.wide - 0.5) * 12 : 0)).toFixed(1));
+    if (R.recording && (R.micAnalyser || R.cap)) {
+      const l = R.cap ? R.micLevel : level(R.micAnalyser);
       rob("ring").setAttribute("r", (170 + Math.min(1, l * 6) * 22).toFixed(1));
       if (l > 0.035) {
         R.startedSpeech = true;
@@ -2782,71 +2856,182 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       r.readAsDataURL(blob);
     });
   }
-  async function startListening() {
-    if (R.recording || busy) return;
-    if (!navigator.mediaDevices || !window.MediaRecorder) {
-      robotStatus("Le micro n’est pas disponible sur cet appareil.");
-      return;
+  function encodeWav(chunks, rate) {
+    let len = 0;
+    for (const c of chunks) len += c.length;
+    const all = new Float32Array(len);
+    let o = 0;
+    for (const c of chunks) {
+      all.set(c, o);
+      o += c.length;
     }
+    const target = 16e3, ratio = rate / target, n = Math.floor(all.length / ratio), buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (p, t) => {
+      for (let i = 0; i < t.length; i++) v.setUint8(p + i, t.charCodeAt(i));
+    };
+    w(0, "RIFF");
+    v.setUint32(4, 36 + n * 2, true);
+    w(8, "WAVE");
+    w(12, "fmt ");
+    v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true);
+    v.setUint32(24, target, true);
+    v.setUint32(28, target * 2, true);
+    v.setUint16(32, 2, true);
+    v.setUint16(34, 16, true);
+    w(36, "data");
+    v.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) {
+      let s = 0, c = 0;
+      const a = Math.floor(i * ratio), b = Math.min(all.length, Math.floor((i + 1) * ratio));
+      for (let j = a; j < b; j++) {
+        s += all[j];
+        c++;
+      }
+      const x = Math.max(-1, Math.min(1, c ? s / c : 0));
+      v.setInt16(44 + i * 2, x < 0 ? x * 32768 : x * 32767, true);
+    }
+    return new Blob([buf], { type: "audio/wav" });
+  }
+  function releaseMic() {
     try {
-      if (!R.stream || R.stream.getTracks().every((t) => t.readyState === "ended"))
-        R.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      if (R.stream) R.stream.getTracks().forEach((t) => t.stop());
     } catch (e) {
-      robotStatus("🎤 Micro refusé : autorise le micro dans les réglages.");
-      return;
     }
-    const ctx = audioCtx();
-    if (ctx) {
+    R.stream = null;
+    R.micAnalyser = null;
+    if (R.cap) {
       try {
-        await ctx.resume();
+        R.cap.proc.disconnect();
+        R.cap.src.disconnect();
+        R.cap.ctx.close();
       } catch (e) {
       }
-      if (!R.micAnalyser) {
-        try {
-          const s = ctx.createMediaStreamSource(R.stream);
-          R.micAnalyser = ctx.createAnalyser();
-          R.micAnalyser.fftSize = 512;
-          s.connect(R.micAnalyser);
-        } catch (e) {
-        }
+    }
+  }
+  async function startListening() {
+    if (R.recording || busy) return;
+    if (!CAN_RECORD) {
+      robotStatus(micHelp());
+      return;
+    }
+    const useWav = !window.MediaRecorder;
+    let capCtx = null;
+    if (useWav) {
+      const C = window.AudioContext || window.webkitAudioContext;
+      capCtx = new C();
+      try {
+        capCtx.resume();
+      } catch (e) {
       }
     }
-    const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((m) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || "";
+    robotStatus("Je t’écoute…");
     try {
-      R.rec = new MediaRecorder(R.stream, mime ? { mimeType: mime } : void 0);
+      R.stream = await navigator.mediaDevices.getUserMedia(useWav ? { audio: true } : { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (e) {
-      robotStatus("Impossible d’enregistrer ici.");
+      if (capCtx) try {
+        capCtx.close();
+      } catch (e2) {
+      }
+      robotStatus("🎤 Micro refusé : dans Réglages › Safari › Micro, choisis « Autoriser ».");
       return;
     }
     R.chunks = [];
     R.cancelRec = false;
-    R.startedSpeech = !R.micAnalyser;
     R.recStart = R.lastLoud = Date.now();
-    R.rec.ondataavailable = (e) => {
-      if (e.data && e.data.size) R.chunks.push(e.data);
-    };
-    R.rec.onstop = onRecorded;
-    R.rec.start();
+    R.micLevel = 0;
+    if (useWav) {
+      const src = capCtx.createMediaStreamSource(R.stream), proc = capCtx.createScriptProcessor(4096, 1, 1);
+      R.cap = { ctx: capCtx, src, proc, rate: capCtx.sampleRate, bufs: [] };
+      proc.onaudioprocess = (e) => {
+        if (!R.recording) return;
+        const d = e.inputBuffer.getChannelData(0);
+        R.cap.bufs.push(new Float32Array(d));
+        let s = 0;
+        for (let i = 0; i < d.length; i += 8) s += d[i] * d[i];
+        R.micLevel = Math.sqrt(s / (d.length / 8));
+      };
+      src.connect(proc);
+      proc.connect(capCtx.destination);
+      R.startedSpeech = false;
+    } else {
+      const ctx = audioCtx();
+      if (ctx) {
+        try {
+          await ctx.resume();
+        } catch (e) {
+        }
+        try {
+          const sNode = ctx.createMediaStreamSource(R.stream);
+          R.micAnalyser = ctx.createAnalyser();
+          R.micAnalyser.fftSize = 512;
+          sNode.connect(R.micAnalyser);
+        } catch (e) {
+        }
+      }
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((m) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || "";
+      try {
+        R.rec = new MediaRecorder(R.stream, mime ? { mimeType: mime } : void 0);
+      } catch (e) {
+        releaseMic();
+        robotStatus("Impossible d’enregistrer ici.");
+        return;
+      }
+      R.rec.ondataavailable = (e) => {
+        if (e.data && e.data.size) R.chunks.push(e.data);
+      };
+      R.rec.onstop = onRecorded;
+      R.rec.start();
+      R.startedSpeech = !R.micAnalyser;
+    }
     R.recording = true;
     R.lastActivity = Date.now();
-    robotStatus("Je t’écoute…");
+    rob("robotMic").classList.add("on");
   }
   function stopListening(cancel) {
     if (!R.recording) return;
     R.recording = false;
     R.cancelRec = !!cancel;
-    try {
-      R.rec.stop();
-    } catch (e) {
-    }
+    rob("robotMic").classList.remove("on");
     rob("ring").setAttribute("r", "170");
-    if (cancel) robotStatus("Je n’ai rien entendu. Touche-moi pour parler.");
+    if (R.cap) {
+      const cap = R.cap;
+      R.wavMode = true;
+      R.lastBlob = cancel ? null : encodeWav(cap.bufs, cap.rate);
+      releaseMic();
+      R.cap = null;
+      onRecorded();
+    } else {
+      try {
+        R.rec.stop();
+      } catch (e) {
+      }
+    }
+    if (cancel) robotStatus("Je n’ai rien entendu. Appuie sur 🎤 pour parler.");
+  }
+  function micHelp() {
+    const standalone = window.navigator.standalone === true;
+    return standalone ? "🎤 Sur cet iPad, le micro marche seulement dans Safari : ouvre Léo depuis Safari, pas depuis l’icône." : "🎤 Le micro n’est pas disponible ici : utilise ⌨️.";
+  }
+  function isRepeat(t) {
+    t = String(t).replace(/[’`]/g, "'");
+    return /^\s*(tu peux |peux-tu |léo,? )?(r[ée]p[èée]te|redis|redit|encore une fois|j'ai pas entendu|j’ai pas entendu|quoi)( le| la| ça| ca)?( (s'il te pla[iî]t|stp|svp))?\s*[ ?!.]*$/i.test(t);
   }
   async function onRecorded() {
-    const type = R.rec && R.rec.mimeType || "audio/webm";
-    const blob = new Blob(R.chunks, { type });
-    if (R.cancelRec || blob.size < 1500) {
-      if (!R.cancelRec) robotStatus("Touche-moi pour parler.");
+    let blob, type;
+    if (R.wavMode) {
+      blob = R.lastBlob;
+      type = "audio/wav";
+      R.lastBlob = null;
+      R.wavMode = false;
+    } else {
+      type = R.rec && R.rec.mimeType || "audio/webm";
+      blob = new Blob(R.chunks, { type });
+      releaseMic();
+    }
+    if (R.cancelRec || !blob || blob.size < 1500) {
+      if (!R.cancelRec) robotStatus("Appuie sur 🎤 pour parler.");
       return;
     }
     robotStatus("Je réfléchis…");
@@ -2863,10 +3048,16 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       if (!response.ok) throw Error(data.error || "erreur " + response.status);
       if (!said || said.length < 2) {
         R.awaitingVoice = 0;
-        robotStatus("Je n’ai pas bien compris. Touche-moi et redis-le.");
+        robotStatus("Je n’ai pas bien compris. Appuie sur 🎤 et redis-le.");
         return;
       }
       rob("robotHeard").textContent = "🗣️ " + said;
+      if (isRepeat(said) && R.lastReply) {
+        R.awaitingVoice = 0;
+        robotStatus("Je répète…");
+        speak(speechSource(R.lastReply));
+        return;
+      }
       input.value = said;
       lastInputWasVoice = true;
       await sendMessage();
@@ -2888,7 +3079,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     sub.replaceChildren();
     const t = textOnly(reply);
     if (t) renderRich(sub, t.length > 260 ? t.slice(0, 257) + "…" : t);
-    robotStatus(CAN_RECORD ? "Touche-moi pour répondre." : "Écris ou dicte ta réponse en haut.");
+    robotStatus(CAN_RECORD ? "Appuie sur 🎤 pour répondre." : micHelp());
     robotPanel(blocks);
   }
   function robotPanel(blocks) {
@@ -2927,8 +3118,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (busy) return;
     if (speakingNow()) stopSpeaking();
     if (!CAN_RECORD) {
-      robotStatus("Écris, ou appuie sur 🎤 du clavier pour dicter.");
-      rob("robotInput").focus();
+      robotStatus(micHelp());
+      showKeyboardFallback();
       return;
     }
     closePanel();
@@ -2946,7 +3137,8 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (R.on) {
       const p = currentProfile();
       rob("robotName").textContent = p ? p.name : "Qui es-tu ?";
-      robotStatus(p ? CAN_RECORD ? "Touche-moi pour parler !" : "Écris ou dicte en haut, puis ➤" : "");
+      robotStatus(p ? CAN_RECORD ? "Appuie sur 🎤 pour me parler !" : micHelp() : "");
+      if (!CAN_RECORD) showKeyboardFallback();
       if (!p) openWho();
       R.lastActivity = Date.now();
       try {
@@ -2965,6 +3157,14 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   rob("robotFaceBox").addEventListener("click", robotTap);
+  rob("robotMic").addEventListener("click", robotTap);
+  function showKeyboardFallback() {
+    rob("robotKbd").style.display = "";
+  }
+  rob("robotKbd").addEventListener("click", () => {
+    rob("robotBar").classList.toggle("show");
+    if (rob("robotBar").classList.contains("show")) rob("robotInput").focus();
+  });
   rob("robotBar").addEventListener("submit", async (e) => {
     e.preventDefault();
     const t = rob("robotInput").value.trim();
@@ -2977,6 +3177,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     R.lastActivity = Date.now();
     rob("robotInput").value = "";
     rob("robotInput").blur();
+    rob("robotBar").classList.remove("show");
     closePanel();
     rob("robotSub").replaceChildren();
     rob("robotHeard").textContent = "🗣️ " + t;
@@ -3025,7 +3226,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     sub.replaceChildren();
     sub.append(hello);
     R.lastReply = hello;
-    robotStatus(CAN_RECORD ? "Touche-moi pour parler !" : "Écris ou dicte en haut, puis ➤");
+    robotStatus(CAN_RECORD ? "Appuie sur 🎤 pour me parler !" : micHelp());
     speak(hello);
   }
   rob("robotWho").addEventListener("click", openWho);
