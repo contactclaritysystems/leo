@@ -143,9 +143,34 @@
   #robot .rtop { position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; }
   #robot .rtop button { background: #ffffff14; border-radius: 12px; width: 42px; height: 42px; font-size: 18px; }
   #robotName { color: #64748b; font-size: 14px; }
-  #robotFaceBox { width: min(92vw, 70vh * 1.33, 620px); width: min(92vw, 70dvh * 1.33, 620px); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  #robotFaceBox { width: 80vw; width: min(92vw, calc((100vh - 250px) * 1.33), 640px); cursor: pointer; -webkit-tap-highlight-color: transparent; }
   #robotFaceBox svg { width: 100%; height: auto; display: block; }
   .face .eye { fill: #22d3ee; filter: drop-shadow(0 0 10px #22d3ee); transition: fill .3s; }
+  .face .glow { fill: #22d3ee; opacity: .07; } .face.happy .glow, .face.sleep .glow { opacity: 0; }
+  .face .shine { fill: #ecfeff; opacity: .55; } .face.happy .shine, .face.sleep .shine { display: none; }
+  .face .brow rect { fill: #22d3ee; opacity: 0; transition: opacity .25s; }
+  .face.question .brow rect, .face.excited .brow rect, .face.listening .brow rect { opacity: .9; }
+  .face .smile { fill: none; stroke: #22d3ee; stroke-width: 10; stroke-linecap: round; display: none; }
+  .face.happy .smile, .face.excited .smile { display: inline; } .face.happy .mouth, .face.excited .mouth { display: none; }
+  .face .qmark { opacity: 0; fill: #fbbf24; font: bold 60px Arial; } .face.question .qmark { opacity: 1; }
+  .face .stars { opacity: 0; fill: #fde047; } .face.excited .stars, .face.happy .stars { opacity: 1; animation: dot 1s infinite; }
+  /* Vieux iPad : pas d'effets coûteux (flou lumineux) */
+  .novv .face .eye, .novv .face .mouth, .novv .face .happyEye { filter: none; }
+  .novv .face .glow { opacity: .09; }
+  #robot .rtop .who { width: auto; padding: 0 14px; font-size: 16px; color: #cbd5e1; }
+  .rbar { position: absolute; top: calc(62px + env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; align-items: center; max-width: 760px; margin: 0 auto; }
+  .rbar input { flex: 1; min-width: 0; height: 46px; border-radius: 23px; padding: 0 16px; font-size: 17px; background: #0f172a; border: 1px solid #334155; color: #fff; }
+  .rbar button { flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; font-size: 18px; margin-left: 8px; }
+  .rbar button.grey { background: #ffffff14; }
+  #robot { padding-top: calc(120px + env(safe-area-inset-top)); }
+  .whopanel { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: rgba(2,6,23,.92); display: none; align-items: center; justify-content: center; z-index: 5; padding: 20px; }
+  .whopanel.open { display: flex; }
+  .whobox { width: 100%; max-width: 640px; text-align: center; }
+  .whobox h2 { color: #e2e8f0; margin: 0 0 18px; }
+  .wholist { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+  .wholist button { width: 150px; height: 150px; margin: 8px; border-radius: 26px; background: #1e293b; border: 2px solid #334155; color: #fff; font-size: 20px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .wholist button .av { width: 64px; height: 64px; border-radius: 50%; background: #0e7490; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 10px; }
+  .wholist button small { font-weight: 400; font-size: 13px; color: #94a3b8; margin-top: 4px; }
   .face .mouth { fill: #22d3ee; filter: drop-shadow(0 0 8px #22d3ee); }
   .face .happyEye { display: none; fill: none; stroke: #22d3ee; stroke-width: 14; stroke-linecap: round; filter: drop-shadow(0 0 10px #22d3ee); }
   .face.happy .eye { display: none; } .face.happy .happyEye { display: inline; }
@@ -211,14 +236,31 @@
 <div id="chat" aria-live="polite"></div>
 <div id="photoStatus"></div>
 <div id="robot" aria-label="Léo robot">
-  <div class="rtop"><button type="button" id="robotExit" aria-label="Revenir à la conversation">💬</button><span id="robotName"></span><button type="button" id="robotSettings" aria-label="Espace parent">⚙️</button></div>
-  <div id="robotFaceBox" role="button" aria-label="Touche pour parler à Léo">
+  <div class="rtop">
+    <button type="button" id="robotExit" aria-label="Revenir à la conversation">💬</button>
+    <button type="button" id="robotWho" class="who" aria-label="Changer d'enfant"><span id="robotName">Qui es-tu ?</span> ▾</button>
+    <button type="button" id="robotSettings" aria-label="Espace parent">⚙️</button>
+  </div>
+  <form id="robotBar" class="rbar" autocomplete="off">
+    <input id="robotInput" type="text" enterkeyhint="send" placeholder="Écris ou dicte à Léo… (🎤 du clavier)" aria-label="Message à Léo">
+    <button type="submit" id="robotSend" aria-label="Envoyer">➤</button>
+    <button type="button" id="robotRepeat" class="grey" aria-label="Répéter">🔁</button>
+    <button type="button" id="robotStop" class="grey" aria-label="Arrêter la voix">⏹</button>
+  </form>
+  <div id="robotFaceBox" role="button" aria-label="Touche le visage de Léo">
     <svg viewBox="0 0 400 300" id="robotFace" class="face idle">
       <circle class="ring" id="ring" cx="200" cy="150" r="170"/>
+      <ellipse class="glow" cx="125" cy="115" rx="54" ry="66"/><ellipse class="glow" cx="275" cy="115" rx="54" ry="66"/>
+      <g class="brow" id="browL"><rect x="88" y="38" width="74" height="10" rx="5"/></g>
+      <g class="brow" id="browR"><rect x="238" y="38" width="74" height="10" rx="5"/></g>
       <g transform="translate(125 115)"><rect class="eye" id="eyeL" x="-38" y="-50" width="76" height="100" rx="34"/></g>
       <g transform="translate(275 115)"><rect class="eye" id="eyeR" x="-38" y="-50" width="76" height="100" rx="34"/></g>
+      <g class="shine"><circle cx="110" cy="88" r="9"/><circle cx="260" cy="88" r="9"/></g>
       <path class="happyEye" d="M92 125 Q125 80 158 125"/><path class="happyEye" d="M242 125 Q275 80 308 125"/>
       <ellipse class="mouth" id="mouth" cx="200" cy="225" rx="34" ry="4"/>
+      <path class="smile" d="M160 215 Q200 255 240 215"/>
+      <text class="qmark" x="330" y="70">?</text>
+      <g class="stars"><path d="M60 40 l6 14 14 6 -14 6 -6 14 -6 -14 -14 -6 14 -6z"/><path d="M345 200 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5z"/></g>
       <g class="dots"><circle cx="300" cy="40" r="7"/><circle cx="322" cy="30" r="7"/><circle cx="344" cy="20" r="7"/></g>
       <text class="zzz" x="300" y="60">Z z</text>
     </svg>
@@ -227,6 +269,13 @@
   <div id="robotHeard"></div>
   <div id="robotSub"></div>
   <div id="robotPanel"><button type="button" id="robotPanelClose" aria-label="Fermer">✖</button><div id="robotPanelBody"></div></div>
+  <div id="robotWhoPanel" class="whopanel">
+    <div class="whobox">
+      <h2>👋 Qui parle à Léo ?</h2>
+      <div id="robotWhoList" class="wholist"></div>
+      <button type="button" id="robotWhoAdd" class="small-btn grey">➕ Nouveau profil</button>
+    </div>
+  </div>
 </div>
 <div id="zoom" role="dialog" aria-label="Dessin agrandi"><img alt="Dessin de Léo"></div>
 <div id="input-area">
@@ -300,7 +349,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v30</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v31</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -937,6 +986,15 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
       mailing = false;
     }
   }
+  function ageGuide(age) {
+    if (!age) return "";
+    if (age <= 4) return "Âge 3-4 ans : il ne lit pas. Une seule phrase très courte à la fois, mots très simples, beaucoup de jeux, de couleurs, d'animaux et de comptines. Jamais de leçon.";
+    if (age <= 6) return "Âge 5-6 ans : il ne lit pas encore (ou à peine) : tout passe par la voix. 1 ou 2 phrases courtes, des mots simples, des exemples concrets (doigts, jouets, animaux). Activités courtes et ludiques : lettres et sons, chiffres jusqu'à 10 ou 20, petits calculs avec des objets, formes, couleurs, devinettes, petites histoires où il choisit la suite. Félicite beaucoup, ne corrige jamais l'orthographe.";
+    if (age <= 8) return "Âge 7-8 ans : il apprend à lire et à écrire. Phrases courtes, 2 à 4 phrases par réponse, exemples concrets, beaucoup d'encouragements.";
+    if (age <= 11) return "Âge 9-11 ans : il aime comprendre comment les choses marchent. Explications claires en 3 à 6 phrases, vocabulaire scolaire expliqué, défis, logique, projets (sciences, robots, programmation Scratch, création).";
+    if (age <= 14) return "Âge 12-14 ans : ton plus adulte, jamais enfantin. Méthode, rigueur, autonomie ; propose des projets plus ambitieux.";
+    return "Âge 15 ans et plus : ton d'égal à égal, raisonnement rigoureux, autonomie.";
+  }
   function levelGuide(cls) {
     const i = CLASSES.indexOf(cls);
     if (i < 0) return "";
@@ -952,7 +1010,11 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     L.push("Tu es Léo, professeur personnel bienveillant pour un enfant. Nous sommes le ".concat(today, " (date ISO ").concat(todayISO(), ")."));
     L.push("Profil : prénom ".concat(profile.name, ", âge ").concat(profile.age, " ans, classe ").concat(profile.schoolClass, "."));
     L.push("Tu maîtrises les programmes officiels de l'Éducation nationale de la maternelle au lycée, et en particulier jusqu'à la fin du collège (brevet).");
+    L.push(ageGuide(Number(profile.age)));
     L.push(levelGuide(profile.schoolClass));
+    L.push("L'âge passe avant la classe pour la façon de parler (longueur, vocabulaire, jeux) ; la classe sert surtout à savoir ce qui est au programme. Si l'âge et la classe ne correspondent pas (enfant en avance ou en retard), ne le fais jamais remarquer.");
+    if (typeof R !== "undefined" && R.on) L.push("L'enfant te parle à travers ton visage de robot sur une tablette : tes réponses sont surtout écoutées. Fais court (2 ou 3 phrases), une seule question à la fois, et garde les dessins pour quand ils sont vraiment utiles.");
+    L.push("Tu es une intelligence artificielle, pas un humain : si l'enfant te le demande, dis-le simplement et gentiment. Tu es un compagnon d'apprentissage, pas un remplaçant de ses amis ou de sa famille : si l'enfant dit que tu es son seul ami ou qu'il préfère te parler qu'aux autres, réponds avec douceur et encourage-le à jouer et parler avec ses amis, sa famille et ses enseignants.");
     L.push("Adapte toujours tes explications à l'âge réel de l'enfant : un enfant en avance ou en difficulté doit être pris tel qu'il est.");
     L.push("");
     L.push(memoryPrompt());
@@ -2431,16 +2493,29 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     place();
   }
   if (!window.visualViewport) {
-    // Vieux iPad / iPhone : la page prend exactement la hauteur visible (sans la barre de Safari),
-    // et ne bouge plus, sauf pendant la frappe (Safari fait alors remonter le champ au-dessus du clavier).
     document.documentElement.classList.add("novv");
-    const fitOld = () => { document.body.style.height = window.innerHeight + "px"; };
-    const typing = () => { const a = document.activeElement; return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
+    const fitOld = () => {
+      document.body.style.height = window.innerHeight + "px";
+    };
+    const typing = () => {
+      const a = document.activeElement;
+      return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+    };
     fitOld();
     window.addEventListener("resize", fitOld);
-    window.addEventListener("orientationchange", () => { setTimeout(fitOld, 300); setTimeout(fitOld, 800); });
-    window.addEventListener("scroll", () => { if (!typing() && (window.scrollY || window.scrollX)) window.scrollTo(0, 0); });
-    document.addEventListener("focusout", () => setTimeout(() => { if (!typing()) { window.scrollTo(0, 0); fitOld(); } }, 120));
+    window.addEventListener("orientationchange", () => {
+      setTimeout(fitOld, 300);
+      setTimeout(fitOld, 800);
+    });
+    window.addEventListener("scroll", () => {
+      if (!typing() && (window.scrollY || window.scrollX)) window.scrollTo(0, 0);
+    });
+    document.addEventListener("focusout", () => setTimeout(() => {
+      if (!typing()) {
+        window.scrollTo(0, 0);
+        fitOld();
+      }
+    }, 120));
   } else window.addEventListener("scroll", () => {
     if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
   }, { passive: true });
@@ -2581,8 +2656,12 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     startedSpeech: false,
     recStart: 0,
     lastLoud: 0,
-    cancelRec: false
+    cancelRec: false,
+    lastReply: "",
+    questionUntil: 0,
+    excitedUntil: 0
   };
+  const CAN_RECORD = !!(navigator.mediaDevices && window.MediaRecorder);
   const rob = (id) => document.getElementById(id);
   function robotStatus(t) {
     rob("robotStatus").textContent = t || "";
@@ -2596,6 +2675,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return R.ctx;
   }
   async function connectVoiceAnalyser() {
+    if (!CAN_RECORD) return;
     const ctx = audioCtx();
     if (!ctx || R.outAnalyser) return;
     try {
@@ -2624,19 +2704,22 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     return Math.sqrt(s / d.length);
   }
   function speakingNow() {
-    const audio = !player.paused && !player.ended && player.currentTime > 0.08 && player.duration > 0.3;
+    const audio = !player.paused && !player.ended && player.currentTime > 0.08;
     return audio || !!(synth && synth.speaking);
   }
   function robotState() {
-    if (R.recording) return "listening";
+    const now = Date.now();
+    if (R.recording || document.activeElement === rob("robotInput")) return "listening";
     if (busy) return "thinking";
     if (speakingNow()) {
       R.awaitingVoice = 0;
       return "speaking";
     }
-    if (R.awaitingVoice && Date.now() < R.awaitingVoice) return "thinking";
-    if (Date.now() < R.happyUntil) return "happy";
-    if (Date.now() - R.lastActivity > 3 * 6e4) return "sleep";
+    if (R.awaitingVoice && now < R.awaitingVoice) return "thinking";
+    if (now < R.happyUntil) return "happy";
+    if (now < R.excitedUntil) return "excited";
+    if (now < R.questionUntil) return "question";
+    if (now - R.lastActivity > 3 * 6e4) return "sleep";
     return "idle";
   }
   function robotFrame() {
@@ -2644,12 +2727,16 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     const now = Date.now(), st = robotState(), face = rob("robotFace");
     face.setAttribute("class", "face " + st);
     if (now > R.look.next) {
-      const range = st === "thinking" ? 0 : st === "listening" ? 6 : 22;
+      const range = st === "thinking" ? 0 : st === "listening" ? 6 : st === "question" ? 8 : 22;
       R.look.tx = (Math.random() * 2 - 1) * range;
       R.look.ty = (Math.random() * 2 - 1) * range * 0.5;
       if (st === "thinking") {
         R.look.tx = 18;
         R.look.ty = -22;
+      }
+      if (st === "listening" && !R.recording) {
+        R.look.tx = 0;
+        R.look.ty = -18;
       }
       R.look.next = now + 900 + Math.random() * 2200;
     }
@@ -2661,10 +2748,16 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     R.blink = Math.max(0, R.blink - 0.12);
     const open = st === "sleep" ? 0.08 : 1 - Math.sin(R.blink * Math.PI) * 0.92;
-    const tall = st === "listening" ? 1.12 : st === "thinking" ? 0.8 : 1;
-    for (const eye of [rob("eyeL"), rob("eyeR")]) eye.setAttribute("transform", "translate(".concat(R.look.x.toFixed(1), " ").concat(R.look.y.toFixed(1), ") scale(1 ").concat((open * tall).toFixed(3), ")"));
+    const tall = st === "listening" ? 1.12 : st === "thinking" ? 0.8 : st === "excited" ? 1.15 : 1;
+    const tallR = st === "question" ? 0.82 : tall;
+    const tr = (t) => "translate(".concat(R.look.x.toFixed(1), " ").concat(R.look.y.toFixed(1), ") scale(1 ").concat((open * t).toFixed(3), ")");
+    rob("eyeL").setAttribute("transform", tr(tall));
+    rob("eyeR").setAttribute("transform", tr(tallR));
+    const lift = st === "excited" ? -10 : st === "listening" ? -6 : 0;
+    rob("browL").setAttribute("transform", st === "question" ? "translate(0 2) rotate(-8 125 43)" : "translate(0 ".concat(lift, ")"));
+    rob("browR").setAttribute("transform", st === "question" ? "translate(0 -10) rotate(10 275 43)" : "translate(0 ".concat(lift, ")"));
     let target = 0;
-    if (st === "speaking") target = R.outAnalyser && !player.paused ? Math.min(1, level(R.outAnalyser) * 5) : 0.25 + Math.abs(Math.sin(now / 95)) * 0.55;
+    if (st === "speaking") target = R.outAnalyser && !player.paused ? Math.min(1, level(R.outAnalyser) * 5) : 0.15 + Math.abs(Math.sin(now / 90)) * 0.45 + Math.abs(Math.sin(now / 37)) * 0.25;
     R.mouth += (target - R.mouth) * 0.35;
     rob("mouth").setAttribute("ry", (4 + R.mouth * 26).toFixed(1));
     rob("mouth").setAttribute("rx", (34 - R.mouth * 8).toFixed(1));
@@ -2786,12 +2879,16 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     if (!R.on) return;
     R.lastActivity = Date.now();
     R.awaitingVoice = Date.now() + 8e3;
-    if (/bravo|c[’']est juste|super|g[ée]nial|excellent|parfait/i.test(reply)) R.happyUntil = Date.now() + 2500;
+    R.lastReply = reply;
+    const plain = textOnly(reply);
+    if (/bravo|c[’']est juste|g[ée]nial|excellent|parfait|tu as r[ée]ussi/i.test(plain)) R.happyUntil = Date.now() + 2500;
+    if (/(on (joue|fait|essaie)|d[ée]fi|mission|jeu|exp[ée]rience|aventure|invente|construi)[^.?!]*[!?]/i.test(plain)) R.excitedUntil = Date.now() + 9e3;
+    if (/\?\s*$/.test(plain.replace(new RegExp("[\\s🙂😊😉🎲✨]+$", "u"), ""))) R.questionUntil = Date.now() + 45e3;
     const sub = rob("robotSub");
     sub.replaceChildren();
     const t = textOnly(reply);
     if (t) renderRich(sub, t.length > 260 ? t.slice(0, 257) + "…" : t);
-    robotStatus("Touche-moi pour répondre.");
+    robotStatus(CAN_RECORD ? "Touche-moi pour répondre." : "Écris ou dicte ta réponse en haut.");
     robotPanel(blocks);
   }
   function robotPanel(blocks) {
@@ -2820,7 +2917,7 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     connectVoiceAnalyser();
     R.lastActivity = Date.now();
     if (!currentProfile()) {
-      robotStatus("Un parent doit d’abord créer ton profil : touche 💬.");
+      openWho();
       return;
     }
     if (R.recording) {
@@ -2829,6 +2926,11 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
     if (busy) return;
     if (speakingNow()) stopSpeaking();
+    if (!CAN_RECORD) {
+      robotStatus("Écris, ou appuie sur 🎤 du clavier pour dicter.");
+      rob("robotInput").focus();
+      return;
+    }
     closePanel();
     rob("robotSub").replaceChildren();
     rob("robotHeard").textContent = "";
@@ -2843,8 +2945,9 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     document.body.classList.toggle("robot-on", R.on);
     if (R.on) {
       const p = currentProfile();
-      rob("robotName").textContent = p ? p.name : "";
-      robotStatus(p ? "Touche-moi pour parler !" : "Un parent doit d’abord créer ton profil : touche 💬.");
+      rob("robotName").textContent = p ? p.name : "Qui es-tu ?";
+      robotStatus(p ? CAN_RECORD ? "Touche-moi pour parler !" : "Écris ou dicte en haut, puis ➤" : "");
+      if (!p) openWho();
       R.lastActivity = Date.now();
       try {
         if (navigator.wakeLock) R.wakeLock = await navigator.wakeLock.request("screen");
@@ -2862,6 +2965,77 @@ var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
     }
   }
   rob("robotFaceBox").addEventListener("click", robotTap);
+  rob("robotBar").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const t = rob("robotInput").value.trim();
+    if (!t || busy) return;
+    if (!currentProfile()) {
+      openWho();
+      return;
+    }
+    unlockSpeech();
+    R.lastActivity = Date.now();
+    rob("robotInput").value = "";
+    rob("robotInput").blur();
+    closePanel();
+    rob("robotSub").replaceChildren();
+    rob("robotHeard").textContent = "🗣️ " + t;
+    robotStatus("Je réfléchis…");
+    input.value = t;
+    await sendMessage();
+  });
+  rob("robotRepeat").addEventListener("click", () => {
+    unlockSpeech();
+    R.lastActivity = Date.now();
+    const last = R.lastReply || (conversation.slice().reverse().find((m) => m.role === "assistant") || {}).text || "";
+    if (last) speak(speechSource(last));
+    else robotStatus("Je n’ai encore rien dit !");
+  });
+  rob("robotStop").addEventListener("click", () => {
+    stopSpeaking();
+    R.awaitingVoice = 0;
+    R.lastActivity = Date.now();
+  });
+  function openWho() {
+    const list = rob("robotWhoList");
+    list.replaceChildren();
+    for (const p of profiles) {
+      const b = el("button");
+      b.type = "button";
+      const av = el("span", "av", p.name.trim().charAt(0).toUpperCase());
+      b.append(av, el("span", null, p.name), el("small", null, p.age + " ans · " + p.schoolClass));
+      b.addEventListener("click", () => pickWho(p.id));
+      list.append(b);
+    }
+    rob("robotWhoPanel").classList.add("open");
+  }
+  function pickWho(id) {
+    unlockSpeech();
+    rob("robotWhoPanel").classList.remove("open");
+    chooseProfile(id);
+    const p = currentProfile();
+    if (!p) return;
+    rob("robotName").textContent = p.name;
+    R.lastActivity = Date.now();
+    R.questionUntil = Date.now() + 8e3;
+    rob("robotHeard").textContent = "";
+    closePanel();
+    const hello = "Salut " + p.name + " ! Qu’est-ce qu’on fait aujourd’hui ?";
+    const sub = rob("robotSub");
+    sub.replaceChildren();
+    sub.append(hello);
+    R.lastReply = hello;
+    robotStatus(CAN_RECORD ? "Touche-moi pour parler !" : "Écris ou dicte en haut, puis ➤");
+    speak(hello);
+  }
+  rob("robotWho").addEventListener("click", openWho);
+  rob("robotWhoAdd").addEventListener("click", () => {
+    rob("robotWhoPanel").classList.remove("open");
+    $("profileDialog").showModal();
+  });
+  $("profileForm").addEventListener("submit", () => setTimeout(() => {
+    if (R.on && currentProfile()) pickWho(activeId);
+  }, 0));
   rob("robotExit").addEventListener("click", () => setRobot(false));
   rob("robotSettings").addEventListener("click", () => openSettings());
   rob("robotPanelClose").addEventListener("click", closePanel);
