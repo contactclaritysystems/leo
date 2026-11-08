@@ -540,7 +540,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v50</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v52</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1310,7 +1310,7 @@ Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | 
     L.push(`5) Dictée : quand l'enfant veut faire une dictée, mets le texte entre <dictee> et </dictee>, découpé en morceaux de 3 à 7 mots séparés par |, avec toute la ponctuation. L'appli le lit à voix haute SANS l'afficher : n'écris JAMAIS le texte de la dictée ailleurs dans ta réponse. Choisis un texte adapté à son niveau (CP : 1 ou 2 phrases très simples ; CE1-CE2 : 2 à 4 phrases ; CM et collège : 4 à 8 phrases), de préférence sur ses difficultés d'orthographe, ou reprends exactement le texte ou la liste de mots de sa leçon s'il te le donne. Dis-lui en une phrase de prendre son cahier et de dire « c'est parti » quand il est prêt : tu liras chaque morceau normalement puis lentement mot par mot, et il peut te dire « attends », « répète » ou « continue ». À la fin il te montre sa dictée en photo ou l'écrit. Quand il l'envoie, compare mot à mot avec le texte original (il est dans l'historique), donne le nombre de fautes, écris le texte correct, puis explique les 2 ou 3 fautes les plus importantes avec la règle, et félicite ce qui est réussi.`);
     L.push("");
     L.push(`Calculs : avant de dire qu'une réponse est juste ou fausse, refais toujours le calcul. Si un message de l'enfant contient [Vérification automatique : ...], c'est l'appli qui a fait le calcul : si le message est bien la réponse à ce calcul, fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de cette mention et ne la recopie jamais. Si la réponse est juste, commence par le dire clairement (par exemple "Bravo, c'est juste !") et n'utilise jamais "presque" ou "pas tout à fait". Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
-    L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : ils viennent d'une transcription automatique qui peut se tromper (mot mal entendu, mot anglais à la place du mot français comme « banana » pour « banane », mot coupé, homonyme). Si une réponse ressemble à la bonne par le son ou par le sens, considère que c'est la machine qui a mal entendu : compte-la juste. Si tu ne peux vraiment pas deviner, dis gentiment « je ne suis pas sûr d'avoir bien entendu, tu peux répéter ? », sans jamais compter faux à cause du micro. Ne parle jamais de cette mention.`);
+    L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : ils viennent d'une transcription automatique qui peut se tromper (mot mal entendu, mot anglais à la place du mot français comme « banana » pour « banane », mot coupé, homonyme). Si une réponse ressemble à la bonne par le son ou par le sens, considère que c'est la machine qui a mal entendu : compte-la juste. Si tu ne peux vraiment pas deviner, dis gentiment « je ne suis pas sûr d'avoir bien entendu, tu peux répéter ? », sans jamais compter faux à cause du micro. Si un message [dicté à la voix] ne ressemble pas à une réponse (bruit, mots sans rapport, morceau de ta propre question), ne fais JAMAIS comme s'il avait répondu et ne dis pas « bravo » : redis simplement ta question, gentiment. Ne parle jamais de cette mention.`);
     L.push(`Orthographe : quand l'enfant ÉCRIT lui-même (jamais pour un message [dicté à la voix], car les fautes viennent alors de la machine), aide-le à mieux écrire sans l'embêter. Réponds d'abord à sa question normalement. Puis, s'il y a une faute, ajoute à la fin UNE seule petite remarque, en une phrase courte et sympa, sur la faute la plus utile à corriger, avec la règle ou l'astuce en quelques mots (ex : "Petite astuce : on écrit « beaucoup » avec deux c 😉"). Jamais de liste de fautes, jamais de reproche. Ignore les fautes de frappe évidentes, l'absence de majuscule ou de ponctuation et le langage SMS léger. En maternelle et CP, ne corrige presque rien ; au collège, vise les accords, les homophones (a/à, et/est, ou/où…) et la conjugaison. Pas de remarque si tu en as déjà fait une dans tes deux réponses précédentes, sauf faute vraiment importante. Si la même faute revient souvent, note-la dans la mémoire.`);
     L.push("");
     L.push(settings.strict ? `Devoirs (MODE STRICT choisi par le parent) : pour un exercice de devoir, ne donne JAMAIS la réponse finale, même après plusieurs essais et même si l'enfant insiste ou dit qu'il a le droit. Demande où il bloque, donne UN indice à la fois, de plus en plus précis, explique la méthode et montre-la sur un exemple différent avec d'autres nombres ou d'autres mots, puis laisse-le trouver. Tu peux confirmer si sa réponse est juste. Pour les questions de curiosité (hors devoirs), réponds normalement.` : `Devoirs : ne donne pas immédiatement la solution. Demande où l'enfant bloque si nécessaire, puis donne UN indice à la fois. S'il se trompe, réexplique autrement avec un exemple et laisse-le réessayer. Si plusieurs essais échouent, montre la méthode et la solution expliquée, sans le culpabiliser.`);
@@ -2798,6 +2798,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       { role: "user", content: images.length ? [{ type: "text", text: sentText }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : sentText }
     ];
     const early = { text: "", promise: null };
+    HF.barged = false;
     try {
       const response = await fetchWithTimeout(FUNCTION_URL, {
         method: "POST",
@@ -2836,7 +2837,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       showTop(bubble);
       if (settings.autoRead || viaVoice || R.on) {
         const full = speechSource(reply);
-        if (early.text) {
+        if (HF.barged) {
+        } else if (early.text) {
           const rest = restAfter(full, early.text);
           if (rest) speak(rest, canStreamVoice() ? { keep: true } : { keep: true, after: early.promise });
         } else speak(full);
@@ -4466,6 +4468,13 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
   }, 2e3);
   const HF = {
+    echo: 0.01,
+    bargeN: 0,
+    bargeOff: false,
+    falseBarge: 0,
+    capBarge: false,
+    barged: false,
+    lastTalk: 0,
     on: false,
     testOnly: false,
     mode: "wake",
@@ -4488,7 +4497,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return readJSON(HF_KEY, 1) === 1;
   }
   function hfThreshold() {
-    return Math.max(8e-3, HF.floor * 2.8);
+    return Math.max(0.011, HF.floor * 3.2);
   }
   function hfReset() {
     HF.capturing = false;
@@ -4513,16 +4522,57 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   function hfOnBlock(d, rms, dur) {
     if (!HF.on && !HF.testOnly) return;
     const now = Date.now(), ms = dur * 1e3;
-    const blocked = !HF.testOnly && (busy || now < R.awaitingVoice || R.recording || !currentProfile() || rob("robotWhoPanel").classList.contains("open")) || speakingNow() || speechActive > 0 || HF.pending;
+    const talking = speakingNow() || speechActive > 0;
+    const blocked = !HF.testOnly && (busy && !talking || R.recording || !currentProfile() || rob("robotWhoPanel").classList.contains("open") || !talking && now < R.awaitingVoice) || HF.pending;
     if (blocked) {
       if (HF.capturing) hfReset();
-      HF.muteUntil = now + (micMode() === "pause" ? 700 : 300);
       if (HF.mode === "convo") HF.convoUntil = now + 25e3;
       HF.wasBlocked = true;
       return;
     }
     if (now < HF.muteUntil) {
       HF.pre = [];
+      return;
+    }
+    if (talking) {
+      HF.lastTalk = now;
+      if (HF.mode === "convo") HF.convoUntil = now + 25e3;
+    }
+    if (!HF.capturing && (talking || now - (HF.lastTalk || 0) < 600)) {
+      const trig = talking ? Math.max(0.03, HF.echo * 3) : Math.max(hfThreshold(), HF.echo * 1.8);
+      HF.pre.push(d);
+      if (HF.pre.length > 5) HF.pre.shift();
+      if (rms > trig) {
+        if (++HF.bargeN >= (talking ? 3 : 2)) {
+          if (talking) {
+            if (HF.bargeOff || HF.testOnly) {
+              HF.bargeN = 0;
+              return;
+            }
+            HF.barged = true;
+            stopSpeaking();
+            R.awaitingVoice = 0;
+          }
+          HF.capBarge = talking;
+          HF.capturing = true;
+          HF.buf = HF.pre.slice();
+          HF.pre = [];
+          HF.capMs = HF.buf.length * ms;
+          HF.speechMs = HF.bargeN * ms;
+          HF.silentMs = 0;
+          HF.bargeN = 0;
+          HF.captures = (HF.captures || 0) + 1;
+          if (HF.mode !== "convo") hfSetMode("convo");
+          if (!HF.testOnly && R.on) {
+            const h = rob("robotHeard");
+            h.className = "live";
+            h.textContent = "🎙️ …";
+          }
+        }
+      } else {
+        HF.bargeN = 0;
+        if (talking) HF.echo = HF.echo * 0.92 + Math.min(rms, 0.2) * 0.08;
+      }
       return;
     }
     if (HF.wasBlocked) {
@@ -4546,6 +4596,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           HF.capMs = HF.buf.length * ms;
           HF.speechMs = HF.voiced * ms;
           HF.silentMs = 0;
+          HF.capBarge = false;
           HF.captures = (HF.captures || 0) + 1;
           if (!HF.testOnly && R.on) {
             const h = rob("robotHeard");
@@ -4605,6 +4656,16 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       return String(data.text || "").trim();
     });
   }
+  function echoOfLeo(text) {
+    const nz = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const last = [...conversation].reverse().find((m) => m.role === "assistant");
+    if (!last) return false;
+    const said = nz(textOnly(last.text)), heard = nz(text);
+    if (heard.length >= 6 && said.includes(heard)) return true;
+    const w = heard.split(" ").filter((x) => x.length >= 3);
+    if (w.length >= 3 && w.filter((x) => said.includes(x)).length / w.length >= 0.8) return true;
+    return false;
+  }
   function hfLive(t) {
     if (!t || HALLU_RE.test(t)) return;
     if (HF.testOnly) {
@@ -4649,9 +4710,14 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return o.n;
   }
   function hfFinish() {
-    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs, spec = HF.spec, endAt = Date.now() - HF.silentMs;
+    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs, spec = HF.spec, endAt = Date.now() - HF.silentMs, barge = HF.capBarge;
     hfReset();
-    if (speechMs < (HF.mode === "wake" ? 180 : 250)) return;
+    HF.capBarge = false;
+    if (barge && speechMs < 300) {
+      hfFalseBarge();
+      return;
+    }
+    if (speechMs < (HF.mode === "wake" ? 180 : 300)) return;
     const now = Date.now();
     HF.checks = HF.checks.filter((t) => now - t < 6e4);
     if (HF.mode === "wake" && HF.checks.length >= 8) {
@@ -4666,7 +4732,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.checks.push(now);
     if (!spec && !hfCanSend()) return;
     if (HF.onTest) HF.onTest("🎙️ son capté (" + (capMs / 1e3).toFixed(1) + " s) → envoi…");
-    hfTranscribe(spec ? spec.p : sttRequest(encodeWav(bufs, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), capMs, endAt);
+    hfTranscribe(spec ? spec.p : sttRequest(encodeWav(bufs, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), capMs, endAt, barge);
   }
   const HALLU_RE = /amara|sous-titr|merci d['’]avoir regard|abonnez|un enfant parle [àa] l[ée]o|pour ses devoirs ou pour jouer|^\W*$/i;
   const WAKE_TOKEN = /^(h?e|eh|ai)?(l|n)(e|i|y|ai|ei|ey|ea)h?s?(o|oh|ot|os|on|au|aux|eau|eaux|ow)$/;
@@ -4685,7 +4751,19 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     return null;
   }
-  async function hfTranscribe(request, capMs, endAt) {
+  function hfFalseBarge() {
+    HF.falseBarge++;
+    micLog("interruption pour rien (" + HF.falseBarge + ")");
+    if (HF.falseBarge >= 2) {
+      HF.bargeOff = true;
+      micLog("interruption à la voix désactivée : Léo s’entend lui-même");
+    }
+    if (R.on) {
+      R.awaitingVoice = 0;
+      hfIdleStatus();
+    }
+  }
+  async function hfTranscribe(request, capMs, endAt, barge) {
     const mode = HF.mode, test = HF.testOnly, t0 = endAt || Date.now();
     HF.pending = true;
     if (!test && mode === "convo") {
@@ -4717,6 +4795,21 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (test) {
       const l = document.getElementById("mtLive");
       if (l) l.textContent = text ? "✍️ « " + text + " »" : "";
+    }
+    if (barge && (!text || text.length < 2 || HALLU_RE.test(text) || echoOfLeo(text))) {
+      hfFalseBarge();
+      return;
+    }
+    if (barge) HF.falseBarge = 0;
+    if (!test && (echoOfLeo(text) || /^(euh+|heu+|hum+|hm+|mmh*|ah+|oh+|bah|ben|pff+)[\s.!?…]*$/i.test(text))) {
+      if (mode === "convo") {
+        R.awaitingVoice = 0;
+        hfIdleStatus();
+      }
+      const h = rob("robotHeard");
+      h.className = "ignored";
+      h.textContent = "👂 « " + text + " » — ignoré (bruit ou écho)";
+      return;
     }
     if (HALLU_RE.test(text) || text.length < 2) {
       if (test && HF.onTest) HF.onTest("… " + (capMs / 1e3).toFixed(1) + " s de son → rien de compréhensible" + (text ? " (« " + text + " »)" : ""));
@@ -4812,6 +4905,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     h.dataset.said = text;
     h.textContent = "🗣️ " + text;
     robotStatus("Je réfléchis…");
+    for (let i = 0; busy && i < 100; i++) await new Promise((r) => setTimeout(r, 100));
+    stopSpeaking();
     input.value = text;
     lastInputWasVoice = true;
     P.wait = true;
@@ -5183,7 +5278,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, voiceCommand };
+  window.leoDebug = { Mic, HF, P, VO, voiceCommand, echo: echoOfLeo };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
