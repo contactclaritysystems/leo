@@ -611,7 +611,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v65</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v66</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -731,7 +731,7 @@
           </select></label>
           <label>Rythme de parole (calme ← → vif) <input id="rateInput" type="range" min="0.8" max="1.3" step="0.05"></label>
           <label>Volume de Léo (normal ← → très fort) <input id="boostInput" type="range" min="1" max="4" step="0.25"></label>
-          <label class="check"><input type="checkbox" id="volStableInput"><span>Volume stable : le son de Léo ne baisse plus quand le micro écoute (décoche si Léo se coupe tout seul en parlant).</span></label>
+          <label class="check"><input type="checkbox" id="volStableInput"><span>Volume stable : coupe l'anti-écho du micro (le son de Léo ne baisse plus), mais l'interrompre à la voix marche moins bien. À laisser décoché sauf si le son baisse trop.</span></label>
           <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
           <p class="note" id="voiceTestStatus" style="color:#fbbf24"></p>
         </div>
@@ -2550,6 +2550,16 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   function canStreamVoice() {
     return !!(window.ReadableStream && window.TextDecoder && (window.AudioContext || window.webkitAudioContext)) && (typeof R !== "undefined" && R.on || !!navigator.audioSession);
   }
+  function voDuck(on) {
+    if (!VO.out || !VO.ctx) return;
+    try {
+      VO.out.gain.cancelScheduledValues(VO.ctx.currentTime);
+      VO.out.gain.setTargetAtTime(on ? 0.4 : 1.4, VO.ctx.currentTime, on ? 0.03 : 0.08);
+    } catch {
+      VO.out.gain.value = on ? 0.4 : 1.4;
+    }
+    VO.ducked = !!on;
+  }
   function voPlaying() {
     return !!VO.ctx && VO.endAt > 0 && VO.ctx.currentTime >= VO.firstAt - 0.01 && VO.ctx.currentTime < VO.endAt;
   }
@@ -2771,6 +2781,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     speakToken++;
     speechActive = 0;
     voStop();
+    if (VO.ducked) voDuck(false);
     if (synth) synth.cancel();
     try {
       player.pause();
@@ -2862,6 +2873,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   }
   async function speakInner(text, opts = {}) {
     if (!opts.keep) stopSpeaking();
+    VO.said = (opts.keep ? (VO.said || "") + " " : "") + String(text || "");
     const token = speakToken;
     const segs = [];
     for (const s of splitLang(text)) {
@@ -3958,7 +3970,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     loadVoices();
     $("rateInput").value = settings.rate;
     $("boostInput").value = voiceBoost();
-    $("volStableInput").checked = settings.volStable !== false;
+    $("volStableInput").checked = settings.volStable2 === true;
     $("voiceMode").value = settings.voiceMode;
     $("aiVoice").value = settings.aiVoice;
     $("settingsDialog").showModal();
@@ -3998,8 +4010,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     settings.boost = Number($("boostInput").value) || 2.5;
     {
       const vs = $("volStableInput").checked;
-      if (vs !== (settings.volStable !== false)) {
-        settings.volStable = vs;
+      if (vs !== (settings.volStable2 === true)) {
+        settings.volStable2 = vs;
         if (Mic.live) {
           micStop();
           setTimeout(() => {
@@ -5473,7 +5485,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       return Promise.resolve(false);
     }
     micLog("demande d’accès au micro");
-    const volStable = settings.volStable !== false;
+    const volStable = settings.volStable2 === true;
     const cons = { audio: { echoCancellation: !volStable, noiseSuppression: true, autoGainControl: true, channelCount: 1 } };
     Mic.starting = navigator.mediaDevices.getUserMedia(cons).catch(() => navigator.mediaDevices.getUserMedia({ audio: true })).then((stream) => {
       Mic.stream = stream;
@@ -5594,6 +5606,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   const HF = {
     echo: 0.01,
     bargeN: 0,
+    bargeK: 2.2,
+    soft: false,
+    nearTalk: false,
     bargeOff: false,
     falseBarge: 0,
     capBarge: false,
@@ -5638,6 +5653,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.partialAt = 0;
     HF.stab = null;
     HF.partialGen = (HF.partialGen || 0) + 1;
+    HF.soft = false;
+    HF.nearTalk = false;
   }
   function hfIdleStatus() {
     if (!HF.on || HF.testOnly || !R.on) return;
@@ -5667,29 +5684,29 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       HF.lastTalk = now;
       if (HF.mode === "convo") HF.convoUntil = now + 25e3;
     }
-    if (!HF.capturing && (talking || now - (HF.lastTalk || 0) < 600)) {
-      const trig = talking ? Math.max(0.03, HF.echo * 3) : Math.max(hfThreshold(), HF.echo * 1.8);
+    const nearTalk = talking || now - (HF.lastTalk || 0) < 1500;
+    if (!HF.capturing && nearTalk) {
+      const trig = talking ? Math.max(0.02, HF.echo * HF.bargeK) : Math.max(hfThreshold(), HF.echo * 1.5);
       HF.pre.push(d);
-      if (HF.pre.length > 5) HF.pre.shift();
+      if (HF.pre.length > 14) HF.pre.shift();
       if (rms > trig) {
-        if (++HF.bargeN >= (talking ? 3 : 2)) {
-          if (talking) {
-            if (HF.bargeOff || HF.testOnly) {
-              HF.bargeN = 0;
-              return;
-            }
-            HF.barged = true;
-            stopSpeaking();
-            R.awaitingVoice = 0;
+        if (++HF.bargeN >= 2) {
+          if (talking && (HF.bargeOff || HF.testOnly)) {
+            HF.bargeN = 0;
+            return;
           }
           HF.capBarge = talking;
+          HF.soft = talking;
+          HF.nearTalk = true;
+          if (talking) voDuck(true);
           HF.capturing = true;
-          HF.buf = HF.pre.slice();
+          HF.buf = HF.pre.slice(-Math.max(4, Math.round(700 / ms)));
           HF.pre = [];
           HF.capMs = HF.buf.length * ms;
           HF.speechMs = HF.bargeN * ms;
           HF.silentMs = 0;
           HF.bargeN = 0;
+          HF.partialAt = 0;
           HF.captures = (HF.captures || 0) + 1;
           if (HF.mode !== "convo") hfSetMode("convo");
           if (!HF.testOnly && R.on) {
@@ -5703,6 +5720,16 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         if (talking) HF.echo = HF.echo * 0.92 + Math.min(rms, 0.2) * 0.08;
       }
       return;
+    }
+    if (HF.capturing && HF.soft) {
+      if (!talking) {
+        HF.soft = false;
+        if (VO.ducked) voDuck(false);
+      } else if (HF.capMs > 3500) {
+        micLog("interruption non confirmée");
+        hfFinish();
+        return;
+      }
     }
     if (HF.wasBlocked) {
       HF.wasBlocked = false;
@@ -5756,14 +5783,15 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       HF.spec.p.catch(() => {
       });
     }
-    if (!HF.partialBusy && HF.capMs - HF.partialAt >= 1e3 && HF.silentMs < 300) {
+    if (!HF.partialBusy && HF.capMs - HF.partialAt >= (HF.soft ? 600 : 1e3) && (HF.silentMs < 300 || HF.soft)) {
       HF.partialAt = HF.capMs;
       HF.partialBusy = true;
       const at = HF.capMs, gen = HF.partialGen;
       sttRequest(encodeWav(HF.buf, Mic.rate), "talk").then((t) => {
         if (HF.capturing && gen === HF.partialGen) {
           hfLive(t);
-          hfStable(t, at);
+          if (HF.soft) hfConfirmBarge(t);
+          else hfStable(t, at);
         }
       }, () => {
       }).then(() => {
@@ -5781,6 +5809,36 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       return;
     }
     if (HF.silentMs >= (HF.mode === "wake" ? 600 : R.waitAnswer ? 1100 : OLD_DEVICE ? 800 : 700)) hfFinish();
+  }
+  const nzw = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  function leoWordsNow() {
+    const last = [...conversation].reverse().find((m) => m.role === "assistant");
+    return nzw((VO.said || "") + " " + (last ? textOnly(last.text) : ""));
+  }
+  const FILL1_RE = /^(euh+|heu+|hum+|hm+|mmh*|ah+|oh+|bah|ben|hein|pff+)$/;
+  function ownWords(t) {
+    const L = new Set(leoWordsNow());
+    return nzw(t).filter((w) => !L.has(w) && !FILL1_RE.test(w));
+  }
+  const STOP_RE = /^\s*(stop+|arr[eê]te|attends?|chut|tais[- ]toi|c['’]est bon|ok (c['’]est )?bon|[çc]a va|l[ée]o,? (stop|arr[eê]te|attends?))\b[\s!.,…]*$/i;
+  function hfConfirmBarge(t) {
+    if (!HF.soft || !t || HALLU_RE.test(t)) return;
+    if (STOP_RE.test(t) || ownWords(t).length >= 1) {
+      micLog("interruption confirmée : « " + t + " »");
+      HF.soft = false;
+      HF.barged = true;
+      HF.bargeK = Math.max(2.2, HF.bargeK * 0.9);
+      stopSpeaking();
+      R.awaitingVoice = 0;
+    }
+  }
+  function stripLeoTail(t) {
+    const words = String(t).trim().split(/\s+/), L = leoWordsNow().slice(-12).join(" ");
+    for (let k = Math.min(4, words.length - 1); k >= 1; k--) {
+      const pre = nzw(words.slice(0, k).join(" ")).join(" ");
+      if (pre && (" " + L + " ").indexOf(" " + pre + " ") >= 0 && L.endsWith(pre.split(" ").slice(-1)[0])) return words.slice(k).join(" ").replace(/^[,.;:!?…\s]+/, "");
+    }
+    return t;
   }
   function hfStable(t, at) {
     const k = String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -5868,9 +5926,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const last = [...conversation].reverse().find((m) => m.role === "assistant");
     if (!last) return false;
     const said = nz(textOnly(last.text)), heard = nz(text);
-    if (heard.length >= 6 && said.includes(heard)) return true;
+    if (heard.split(" ").length < 4) return false;
+    if (said.includes(heard)) return true;
     const w = heard.split(" ").filter((x) => x.length >= 3);
-    if (w.length >= 3 && w.filter((x) => said.includes(x)).length / w.length >= 0.8) return true;
+    if (w.length >= 4 && w.filter((x) => said.includes(x)).length / w.length >= 0.8) return true;
     return false;
   }
   function hfLive(t) {
@@ -5917,9 +5976,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return o.n;
   }
   function hfFinish() {
-    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs, spec = HF.spec, endAt = Date.now() - HF.silentMs, barge = HF.capBarge, peak = HF.peak;
+    const bufs = HF.buf, speechMs = HF.speechMs, capMs = HF.capMs, spec = HF.spec, endAt = Date.now() - HF.silentMs, barge = HF.capBarge, peak = HF.peak, near = HF.nearTalk;
     hfReset();
     HF.capBarge = false;
+    HF.lastPeak = peak;
     if (R.waitAnswer) R.waitAnswer.heard = Date.now();
     if (R.waitAnswer && !barge && HF.mode === "convo" && speechMs < 350 && peak < hfThreshold() * 1.6) {
       micLog("petit bruit ignoré pendant la réflexion");
@@ -5944,7 +6004,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.checks.push(now);
     if (!spec && !hfCanSend()) return;
     if (HF.onTest) HF.onTest("🎙️ son capté (" + (capMs / 1e3).toFixed(1) + " s) → envoi…");
-    hfTranscribe(spec ? spec.p : sttRequest(encodeWav(bufs, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), capMs, endAt, barge);
+    hfTranscribe(spec ? spec.p : sttRequest(encodeWav(bufs, Mic.rate), HF.mode === "wake" ? "wake" : "talk"), capMs, endAt, barge, near);
   }
   const HALLU_RE = /amara|sous-titr|merci d['’]avoir regard|abonnez|un enfant parle [àa] l[ée]o|pour ses devoirs ou pour jouer|^\W*$/i;
   const WAKE_TOKEN = /^(h?e|eh|ai)?(l|n)(e|i|y|ai|ei|ey|ea)h?s?(o|oh|ot|os|on|au|aux|eau|eaux|ow)$/;
@@ -5966,16 +6026,15 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   function hfFalseBarge() {
     HF.falseBarge++;
     micLog("interruption pour rien (" + HF.falseBarge + ")");
-    if (HF.falseBarge >= 2) {
-      HF.bargeOff = true;
-      micLog("interruption à la voix désactivée : Léo s’entend lui-même");
-    }
+    HF.bargeK = Math.min(5, HF.bargeK * 1.25);
+    if (HF.lastPeak) HF.echo = Math.min(0.2, Math.max(HF.echo, HF.lastPeak / 2));
+    if (VO.ducked) voDuck(false);
     if (R.on) {
       R.awaitingVoice = 0;
       hfIdleStatus();
     }
   }
-  async function hfTranscribe(request, capMs, endAt, barge) {
+  async function hfTranscribe(request, capMs, endAt, barge, near) {
     const mode = HF.mode, test = HF.testOnly, t0 = endAt || Date.now();
     HF.pending = true;
     if (!test && mode === "convo") {
@@ -6008,12 +6067,28 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const l = document.getElementById("mtLive");
       if (l) l.textContent = text ? "✍️ « " + text + " »" : "";
     }
-    if (barge && (!text || text.length < 2 || HALLU_RE.test(text) || !(R.expectEn && Date.now() < R.expectEn.until) && echoOfLeo(text))) {
-      hfFalseBarge();
-      return;
+    const repeating = R.expectEn && Date.now() < R.expectEn.until;
+    if (barge && !test && (speakingNow() || speechActive > 0)) {
+      if (!text || text.length < 2 || HALLU_RE.test(text) || !repeating && !STOP_RE.test(text) && ownWords(text).length === 0) {
+        hfFalseBarge();
+        return;
+      }
+      micLog("interruption confirmée : « " + text + " »");
+      HF.barged = true;
+      stopSpeaking();
     }
     if (barge) HF.falseBarge = 0;
-    const repeating = R.expectEn && Date.now() < R.expectEn.until;
+    if (!test && (barge || near) && (STOP_RE.test(text) || STOP_RE.test(stripLeoTail(text)) || STOP_RE.test(ownWords(text).join(" ")))) {
+      R.awaitingVoice = 0;
+      R.lastActivity = Date.now();
+      hfSetMode("convo");
+      hfIdleStatus();
+      const h = rob("robotHeard");
+      h.className = "";
+      h.textContent = "🗣️ " + text;
+      return;
+    }
+    if (!test && near && !repeating && text) text = stripLeoTail(text);
     if (!test && (!repeating && echoOfLeo(text) || /^(euh+|heu+|hum+|hm+|mmh*|ah+|oh+|bah|ben|pff+)[\s.!?…]*$/i.test(text))) {
       if (mode === "convo") {
         R.awaitingVoice = 0;
@@ -6559,7 +6634,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, R, THINK, squeezer, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
+  window.leoDebug = { Mic, HF, P, VO, R, THINK, squeezer, stripLeoTail, ownWords, speaking: () => speakingNow() || speechActive > 0, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
