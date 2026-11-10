@@ -325,6 +325,10 @@
   /* le visage remplit l'écran */
   #robotFaceBox { width: min(96vw, calc((100vh - 200px) * 0.97), 900px); }
   @media (orientation: portrait) { #robotFaceBox { width: min(100vw, calc((100vh - 230px) * 0.97)); } #robot { padding-top: calc(48px + env(safe-area-inset-top)) !important; } }
+  /* v61 : la phrase de Léo a toujours la place pour 3 lignes entières (avant, la 2e ligne était coupée) */
+  #robotSub { flex-shrink: 0; max-height: calc(3 * 1.4em + 6px) !important; overflow-y: auto; padding-bottom: 2px; }
+  #robotFaceBox { flex-shrink: 1; min-height: 0; }
+  @media (orientation: portrait) { #robotFaceBox { width: min(100vw, calc((100vh - 330px) * 0.97)) !important; } }
   #robotStatus { color: #ffffffd9 !important; text-shadow: 0 1px 4px #0b173666; }
   #robotSub { color: #ffffff !important; text-shadow: 0 1px 6px #0b173699; }
   #robotHeard { color: #e0f2fe !important; text-shadow: 0 1px 4px #0b173666; }
@@ -607,7 +611,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v60</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v61</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -727,6 +731,7 @@
           </select></label>
           <label>Rythme de parole (calme ← → vif) <input id="rateInput" type="range" min="0.8" max="1.3" step="0.05"></label>
           <label>Volume de Léo (normal ← → très fort) <input id="boostInput" type="range" min="1" max="4" step="0.25"></label>
+          <label class="check"><input type="checkbox" id="volStableInput"><span>Volume stable : le son de Léo ne baisse plus quand le micro écoute (décoche si Léo se coupe tout seul en parlant).</span></label>
           <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
           <p class="note" id="voiceTestStatus" style="color:#fbbf24"></p>
         </div>
@@ -1873,7 +1878,7 @@ Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | 
     L.push(`5) Dictée : quand l'enfant veut faire une dictée, mets le texte entre <dictee> et </dictee>, découpé en morceaux de 3 à 7 mots séparés par |, avec toute la ponctuation. L'appli le lit à voix haute SANS l'afficher : n'écris JAMAIS le texte de la dictée ailleurs dans ta réponse. Choisis un texte adapté à son niveau (CP : 1 ou 2 phrases très simples ; CE1-CE2 : 2 à 4 phrases ; CM et collège : 4 à 8 phrases), de préférence sur ses difficultés d'orthographe, ou reprends exactement le texte ou la liste de mots de sa leçon s'il te le donne. Dis-lui en une phrase de prendre son cahier et de dire « c'est parti » quand il est prêt : tu liras chaque morceau normalement puis lentement mot par mot, et il peut te dire « attends », « répète » ou « continue ». À la fin il te montre sa dictée en photo ou l'écrit. Quand il l'envoie, compare mot à mot avec le texte original (il est dans l'historique), donne le nombre de fautes, écris le texte correct, puis explique les 2 ou 3 fautes les plus importantes avec la règle, et félicite ce qui est réussi.`);
     L.push("");
     L.push(`Attendre la réponse : quand tu poses une question (calcul, devinette, quiz, n'importe quoi), c'est à l'enfant de trouver. Ne réponds jamais à sa place, ne dis jamais « bravo », « tu as réussi » ou « c'est juste » tant qu'il n'a pas clairement donné SA réponse, et ne félicite que si elle est juste. S'il met du temps, l'appli te préviendra avec une [RELANCE AUTOMATIQUE] : alors aide-le seulement avec une petite question-indice.`);
-    L.push(`Calculs : avant de dire qu'une réponse est juste ou fausse, refais toujours le calcul. Si un message de l'enfant contient [Vérification automatique : ...], c'est l'appli qui a fait le calcul : si le message est bien la réponse à ce calcul, fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de cette mention et ne la recopie jamais. Si la réponse est juste, commence par le dire clairement (par exemple "Bravo, c'est juste !") et n'utilise jamais "presque" ou "pas tout à fait". Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Quand tu proposes une étape (décomposer, calcul plus facile), rappelle toujours la question de départ (« pour trouver 63 moins 27… ») pour que l'enfant ne croie pas que le calcul a changé ; et s'il donne directement le bon résultat de la question de départ, c'est JUSTE : bravo, jamais « presque ». Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
+    L.push(`Calculs : chaque fois que tu poses un calcul ou un problème dont la réponse est un nombre (même une étape-indice), ajoute à la toute fin de ta réponse <calc>OPÉRATION</calc> avec l'opération exacte écrite en chiffres, sans le résultat (ex : <calc>63-27</calc>, <calc>(12-5)*3</calc>, <calc>18/2</calc>, <calc>7*8</calc>). L'enfant ne la voit pas : c'est l'appli qui fait le calcul. Ne donne JAMAIS un résultat calculé de tête : si un message de l'enfant contient [Résultat exact ...] ou [Vérification automatique : ...], c'est l'appli qui a calculé : fais-lui entièrement confiance, même si tu penses autre chose. Ne parle jamais de ces mentions et ne les recopie jamais. Si la réponse est juste, dis-le clairement avec une formule courte et variée (« Oui ! », « Exact ! », « Bien vu ! », « C'est ça ! », « Parfait ! »…), jamais deux fois la même d'affilée, et n'utilise jamais "presque" ou "pas tout à fait". Garde « Bravo » pour une vraie réussite (fin d'exercice, calcul difficile, progrès) : pas à chaque réponse. Si l'enfant trouve juste de tête, ne lui impose pas de décomposer : félicite-le et passe au calcul suivant. Si c'est faux, ne donne pas le résultat tout de suite : donne un indice. Quand tu proposes une étape (décomposer, calcul plus facile), rappelle toujours la question de départ (« pour trouver 63 moins 27… ») pour que l'enfant ne croie pas que le calcul a changé ; et s'il donne directement le bon résultat de la question de départ, c'est JUSTE : bravo, jamais « presque ». Respecte exactement le type d'exercice demandé (par exemple des nombres entre 10 et 20) et pose directement le calcul, une seule question à la fois.`);
     L.push(`Les messages dictés à la voix se terminent par la mention [dicté à la voix] : ils viennent d'une transcription automatique qui peut se tromper (mot mal entendu, mot anglais à la place du mot français comme « banana » pour « banane », mot coupé, homonyme). Si une réponse ressemble à la bonne par le son ou par le sens, considère que c'est la machine qui a mal entendu : compte-la juste. Si tu ne peux vraiment pas deviner, dis gentiment « je ne suis pas sûr d'avoir bien entendu, tu peux répéter ? », sans jamais compter faux à cause du micro. Si un message [dicté à la voix] ne ressemble pas à une réponse (bruit, mots sans rapport, morceau de ta propre question), ne fais JAMAIS comme s'il avait répondu et ne dis pas « bravo » : redis simplement ta question, gentiment. Si l'enfant réfléchit à voix haute (il répète la question, fait une étape de calcul comme « 45 moins 10 ça fait 35 », dit « attends », « je cherche ») : ce n'est PAS sa réponse finale, ne donne aucun verdict (ni bravo, ni faux) ; dis seulement une toute petite phrase comme « Oui, continue ! » ou « Je t'écoute, prends ton temps. » et laisse-le finir. Ne parle jamais de cette mention.`);
     L.push(`Orthographe : quand l'enfant ÉCRIT lui-même (jamais pour un message [dicté à la voix], car les fautes viennent alors de la machine), aide-le à mieux écrire sans l'embêter. Réponds d'abord à sa question normalement. Puis, s'il y a une faute, ajoute à la fin UNE seule petite remarque, en une phrase courte et sympa, sur la faute la plus utile à corriger, avec la règle ou l'astuce en quelques mots (ex : "Petite astuce : on écrit « beaucoup » avec deux c 😉"). Jamais de liste de fautes, jamais de reproche. Ignore les fautes de frappe évidentes, l'absence de majuscule ou de ponctuation et le langage SMS léger. En maternelle et CP, ne corrige presque rien ; au collège, vise les accords, les homophones (a/à, et/est, ou/où…) et la conjugaison. Pas de remarque si tu en as déjà fait une dans tes deux réponses précédentes, sauf faute vraiment importante. Si la même faute revient souvent, note-la dans la mémoire.`);
     L.push("");
@@ -1918,8 +1923,34 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   function fmt(n) {
     return String(Math.round(n * 1e3) / 1e3).replace(".", ",");
   }
+  const NUMW = { "zéro": 0, "zero": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11, "douze": 12, "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16, "vingt": 20, "vingts": 20, "trente": 30, "quarante": 40, "cinquante": 50, "soixante": 60, "cent": 100, "cents": 100, "mille": 1e3 };
+  const NUMW_RE = new RegExp("\\b(?:" + Object.keys(NUMW).join("|") + ")(?:(?:[\\s-]+|[\\s-]+et[\\s-]+)(?:" + Object.keys(NUMW).join("|") + "))*\\b", "gi");
+  function wordsToNum(run) {
+    const ws = run.toLowerCase().split(/[\s-]+/).filter((w) => w && w !== "et");
+    let total = 0, cur = 0;
+    for (const w of ws) {
+      const v = NUMW[w];
+      if (v === void 0) return null;
+      if (v === 1e3) {
+        total += (cur || 1) * 1e3;
+        cur = 0;
+      } else if (v === 100) cur = (cur || 1) * 100;
+      else if (v === 20 && cur % 100 === 4) cur = cur - 4 + 80;
+      else cur += v;
+    }
+    return total + cur;
+  }
+  function frToDigits(text) {
+    const whole = String(text).trim();
+    return String(text).replace(NUMW_RE, (run) => {
+      const ws = run.toLowerCase().split(/[\s-]+/).filter((w) => w && w !== "et");
+      if (ws.every((w) => w === "un" || w === "une") && !/^(un|une)[\s.!?]*$/i.test(whole)) return run;
+      const n = wordsToNum(run);
+      return n === null ? run : String(n);
+    });
+  }
   function normalizeMath(text) {
-    return String(text).replace(/(\d)[\s\u00a0\u202f](?=\d{3}\b)/g, "$1").replace(/^\s*\d+[.)]\s+/gm, "").replace(/multipli\w*\s+(\d+(?:[.,]\d+)?)\s+par\s+(\d+(?:[.,]\d+)?)/gi, "$1 × $2").replace(/(\d)\s+multipli\w*\s+par\s+(?=\d)/gi, "$1 × ").replace(/divis\w*\s+(\d+(?:[.,]\d+)?)\s+par\s+(\d+(?:[.,]\d+)?)/gi, "$1 ÷ $2").replace(/(\d)\s+divis\w*\s+par\s+(?=\d)/gi, "$1 ÷ ").replace(/(\d)\s+fois\s+(?=\d)/gi, "$1 × ").replace(/(\d)\s+plus\s+(?=\d)/gi, "$1 + ").replace(/(\d)\s+moins\s+(?=\d)/gi, "$1 − ");
+    return frToDigits(String(text)).replace(/\b(?:le\s+)?double\s+de\s+(\d+(?:[.,]\d+)?)/gi, "$1 × 2").replace(/\b(?:le\s+)?triple\s+de\s+(\d+(?:[.,]\d+)?)/gi, "$1 × 3").replace(/\b(?:la\s+)?moiti[ée]\s+de\s+(\d+(?:[.,]\d+)?)/gi, "$1 ÷ 2").replace(/\b(?:le\s+)?quart\s+de\s+(\d+(?:[.,]\d+)?)/gi, "$1 ÷ 4").replace(/(\d)[\s\u00a0\u202f](?=\d{3}\b)/g, "$1").replace(/^\s*\d+[.)]\s+/gm, "").replace(/multipli\w*\s+(\d+(?:[.,]\d+)?)\s+par\s+(\d+(?:[.,]\d+)?)/gi, "$1 × $2").replace(/(\d)\s+multipli\w*\s+par\s+(?=\d)/gi, "$1 × ").replace(/divis\w*\s+(\d+(?:[.,]\d+)?)\s+par\s+(\d+(?:[.,]\d+)?)/gi, "$1 ÷ $2").replace(/(\d)\s+divis\w*\s+par\s+(?=\d)/gi, "$1 ÷ ").replace(/(\d)\s+fois\s+(?=\d)/gi, "$1 × ").replace(/(\d)\s+plus\s+(?=\d)/gi, "$1 + ").replace(/(\d)\s+moins\s+(?=\d)/gi, "$1 − ");
   }
   function evalExpr(src) {
     const str = src.replace(/[xX*]/g, "×").replace(/\//g, "÷").replace(/:/g, "÷").replace(/−/g, "-");
@@ -2007,14 +2038,19 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     return null;
   }
-  function verifyAnswer(leoText, childText) {
-    if (!leoText || !childText) return "";
+  function calcFromTag(expr) {
+    const seg = normalizeMath(String(expr)).replace(/\s+/g, " ").trim();
+    const value = evalExpr(seg);
+    return value === null ? null : { seg, value };
+  }
+  function verifyAnswer(leoText, childText, forced) {
+    if (!leoText && !forced || !childText) return "";
     const child = normalizeMath(childText);
     if (child.split(/\s+/).length > 12) return "";
     if (HAS_OP_RE.test(child)) return "";
     const nums = child.match(/\d+(?:[.,]\d+)?/g);
     if (!nums) return "";
-    const calc = findAskedCalc(leoText);
+    const calc = forced || findAskedCalc(leoText);
     if (!calc) return "";
     const shown = calc.seg.replace(/[xX*]/g, "×").replace(/\s+/g, " ");
     const cond = "Si ce message est la réponse au calcul " + shown + " (= " + fmt(calc.value) + ")";
@@ -2027,32 +2063,43 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (nums.length !== 1) return "";
     const given = toNum(nums[0]);
     const ok = Math.abs(given - calc.value) < 1e-3;
-    return ok ? ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est JUSTE.]` : ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est FAUSSE : donne un indice sans donner le résultat tout de suite.]`;
+    return ok ? ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est JUSTE (félicite-le brièvement, formule variée).]` : ` [Vérification automatique : ${cond}, la réponse de l'enfant (${fmt(given)}) est FAUSSE : donne un indice sans donner le résultat tout de suite.]`;
   }
-  function recentLeoTexts() {
+  function recentLeo() {
     const out = [];
     for (let i = conversation.length - 1; i >= 0 && out.length < 5; i--) {
       const m = conversation[i];
       if (m.role !== "assistant") continue;
       const t = textOnly(m.text);
-      out.push(t);
+      out.push({ t, calc: m.calc ? calcFromTag(m.calc) : null });
       if (out.length > 1 && /^\W*(bravo|c['’]est juste|super|g[ée]nial|exact|parfait|bien jou[ée]|oui ?!)/i.test(t)) break;
     }
     return out;
   }
+  function recentLeoTexts() {
+    return recentLeo().map((x) => x.t);
+  }
   function verifyRecent(childText) {
-    const texts = recentLeoTexts();
-    if (!texts.length) return "";
-    const first = verifyAnswer(texts[0], childText);
+    const items = recentLeo();
+    if (!items.length) return "";
+    const first = verifyAnswer(items[0].t, childText, items[0].calc);
     if (/JUSTE/.test(first)) return first;
-    for (const t of texts.slice(1)) {
-      const v = verifyAnswer(t, childText);
+    for (const it of items.slice(1)) {
+      const v = verifyAnswer(it.t, childText, it.calc);
       if (/JUSTE/.test(v)) {
-        const calc = findAskedCalc(t), shown = calc.seg.replace(/[xX*]/g, "×").replace(/\s+/g, " ");
-        return ` [Vérification automatique : la réponse de l'enfant est le bon résultat FINAL de la question de départ ${shown} = ${fmt(calc.value)} : c'est JUSTE. Il a trouvé directement, sans passer par ton étape : dis-lui clairement « Bravo, c'est juste ! », jamais « presque », et passe à la suite.]`;
+        const calc = it.calc || findAskedCalc(it.t), shown = calc.seg.replace(/[xX*]/g, "×").replace(/\s+/g, " ");
+        return ` [Vérification automatique : la réponse de l'enfant est le bon résultat FINAL de la question de départ ${shown} = ${fmt(calc.value)} : c'est JUSTE. Il a trouvé directement, sans passer par ton étape : dis-le-lui clairement (une courte formule de félicitation, variée), jamais « presque », et passe à la suite.]`;
       }
     }
     return first;
+  }
+  function exactNote() {
+    const it = recentLeo()[0];
+    if (!it) return "";
+    const calc = it.calc || findAskedCalc(it.t);
+    if (!calc) return "";
+    const shown = calc.seg.replace(/[xX*]/g, "×").replace(/\s+/g, " ");
+    return ` [Résultat exact de ta dernière question, calculé par l'appli : ${shown} = ${fmt(calc.value)}. Juge uniquement avec ce résultat ; si l'enfant n'a pas encore donné de réponse, ne lui donne pas ce résultat.]`;
   }
   function verifyThinking(leoText, childText) {
     const c = normalizeMath(childText);
@@ -2063,7 +2110,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return v ? ` [Réflexion à voix haute : sa réponse finale est ${m[1]}.]` + v : "";
   }
   function stripHidden(t) {
-    return String(t).replace(/\s*\[(dicté à la voix|Réflexion à voix haute[^\]]*|Vérification automatique[^\]]*|Claps comptés[^\]]*|Prononciation[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
+    return String(t).replace(/\s*\[(dicté à la voix|Résultat exact[^\]]*|Réflexion à voix haute[^\]]*|Vérification automatique[^\]]*|Claps comptés[^\]]*|Prononciation[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
   }
   async function fetchWithTimeout(url, options, ms) {
     if (!window.AbortController) {
@@ -3424,7 +3471,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
       if (early && !early.text) {
-        const m = raw.replace(/<(score|emotion|chrono|redis|mission|res|projet)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
+        const m = raw.replace(/<(score|emotion|chrono|redis|mission|res|projet|calc)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}?[.!?…]+)\s/);
         if (m) {
           const t = speechSource(cleanText(m[1])).trim();
           if (t.length >= 3) {
@@ -3472,7 +3519,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const userText = text || (images.length > 1 ? "Voici les photos de mon exercice." : "Voici une photo de mon exercice.");
     const lastLeo = [...conversation].reverse().find((m) => m.role === "assistant");
     const leoQ = lastLeo ? textOnly(lastLeo.text) : "";
-    const check = images.length || hidden ? "" : verifyRecent(userText) || verifyThinking(leoQ, userText);
+    const check = images.length || hidden ? "" : verifyRecent(userText) || verifyThinking(leoQ, userText) || exactNote();
     const inGame = !hidden && (gameOn || /\bjou|devinette|qui suis-je|mot myst|quiz|vrai ou faux|intrus|d[ée]fi calcul/i.test(userText)) && !/jacques|juste nombre|chrono|histoire|claps|syllabe|émotion|emotion/i.test(userText + " " + (lastLeo ? lastLeo.text : ""));
     const sentText = userText + check + (viaVoice ? " [dicté à la voix]" : "") + (inGame ? gameHint() : "");
     if (!hidden) {
@@ -3508,7 +3555,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (typeof raw !== "string" || !raw.trim()) throw Error("La réponse reçue est vide ou inattendue.");
       const { text: noMemo, memo } = extractMemo(raw);
       if (memo) applyMemo(memo);
-      let score = "", emo = "", claps = false, chrono = "", redis = "", missionDone = "", projet = "";
+      let score = "", emo = "", claps = false, chrono = "", redis = "", missionDone = "", projet = "", calcTag = "";
       const results = [];
       const noScore = noMemo.replace(/<score>\s*([^<]{1,60}?)\s*<\/score>/gi, (_, x) => {
         score = x;
@@ -3534,7 +3581,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       }).replace(/<projet>([\s\S]*?)<\/projet>/gi, (_, x) => {
         projet = x;
         return "";
-      }).replace(/<projet>[\s\S]*$/i, "");
+      }).replace(/<calc>\s*([^<]{1,80}?)\s*<\/calc>/gi, (_, x) => {
+        calcTag = x;
+        return "";
+      }).replace(/<\/?calc>/gi, "").replace(/<projet>[\s\S]*$/i, "");
       const { text: noSujet, sujet } = extractSujet(noScore);
       const { text: withMarks, blocks } = extractBlocks(noSujet);
       const { text: noAscii, hadAscii } = stripAsciiArt(withMarks);
@@ -3581,6 +3631,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const photoNote = images.length ? images.length > 1 ? " [" + images.length + " photos envoyées, non conservées]" : " [photo envoyée, non conservée]" : "";
       if (!hidden) record("user", sentText + photoNote);
       record("assistant", reply, blocks);
+      if (calcTag && calcFromTag(calcTag)) {
+        conversation[conversation.length - 1].calc = calcTag;
+        saveJSON(historyKey(activeId), conversation);
+      }
       logActivity(sujet);
       pendingImages = [];
       renderPhotoStatus();
@@ -3828,6 +3882,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     loadVoices();
     $("rateInput").value = settings.rate;
     $("boostInput").value = voiceBoost();
+    $("volStableInput").checked = settings.volStable !== false;
     $("voiceMode").value = settings.voiceMode;
     $("aiVoice").value = settings.aiVoice;
     $("settingsDialog").showModal();
@@ -3865,6 +3920,18 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     settings.aiVoice = $("aiVoice").value;
     settings.rate = Number($("rateInput").value) || 1;
     settings.boost = Number($("boostInput").value) || 2.5;
+    {
+      const vs = $("volStableInput").checked;
+      if (vs !== (settings.volStable !== false)) {
+        settings.volStable = vs;
+        if (Mic.live) {
+          micStop();
+          setTimeout(() => {
+            if (hfWanted()) hfActivate();
+          }, 300);
+        }
+      }
+    }
     if (VO.gain) VO.gain.gain.value = voiceBoost();
     saveJSON(SETTINGS_KEY, settings);
     $("settingsDialog").close();
@@ -5264,7 +5331,19 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         }
       }
     };
-    Mic.src.connect(Mic.proc);
+    try {
+      Mic.hp = ctx.createBiquadFilter();
+      Mic.hp.type = "highpass";
+      Mic.hp.frequency.value = 160;
+      Mic.lp = ctx.createBiquadFilter();
+      Mic.lp.type = "lowpass";
+      Mic.lp.frequency.value = 4200;
+      Mic.src.connect(Mic.hp);
+      Mic.hp.connect(Mic.lp);
+      Mic.lp.connect(Mic.proc);
+    } catch {
+      Mic.src.connect(Mic.proc);
+    }
     Mic.proc.connect(ctx.destination);
   }
   function micDisconnect() {
@@ -5272,6 +5351,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       Mic.proc.onaudioprocess = null;
       Mic.proc.disconnect();
       Mic.src.disconnect();
+      if (Mic.hp) {
+        Mic.hp.disconnect();
+        Mic.lp.disconnect();
+      }
     } catch {
     }
     try {
@@ -5314,7 +5397,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       return Promise.resolve(false);
     }
     micLog("demande d’accès au micro");
-    Mic.starting = navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+    const volStable = settings.volStable !== false;
+    const cons = { audio: { echoCancellation: !volStable, noiseSuppression: true, autoGainControl: false, channelCount: 1 } };
+    Mic.starting = navigator.mediaDevices.getUserMedia(cons).catch(() => navigator.mediaDevices.getUserMedia({ audio: true })).then((stream) => {
       Mic.stream = stream;
       Mic.ctx = ctx;
       Mic.blocks = 0;
@@ -5464,6 +5549,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   }
   function hfReset() {
     HF.peak = 0;
+    HF.sumRms = 0;
+    HF.nRms = 0;
     HF.capturing = false;
     HF.buf = [];
     HF.pre = [];
@@ -5578,7 +5665,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.buf.push(d);
     HF.capMs += ms;
     HF.peak = Math.max(HF.peak || 0, rms);
-    if (rms > thr * 0.6) {
+    HF.sumRms = (HF.sumRms || 0) + rms;
+    HF.nRms = (HF.nRms || 0) + 1;
+    const endLevel = Math.max(thr * 0.6, (HF.peak || 0) * 0.28);
+    if (rms > endLevel) {
       if (HF.silentMs >= 300) HF.spec = null;
       HF.silentMs = 0;
       HF.speechMs += ms;
@@ -5598,7 +5688,17 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         HF.partialBusy = false;
       });
     }
-    if (HF.silentMs >= (HF.mode === "wake" ? 600 : R.waitAnswer ? 1100 : OLD_DEVICE ? 800 : 700) || HF.capMs >= 15e3) hfFinish();
+    const maxCap = activeDictee && activeDictee.active() ? 15e3 : 1e4;
+    if (HF.capMs >= maxCap) {
+      const avg = HF.sumRms / Math.max(1, HF.nRms);
+      if (HF.speechMs > HF.capMs * 0.85) {
+        HF.floor = Math.min(0.06, Math.max(HF.floor, avg / 2.4));
+        micLog("bruit continu : seuil relevé à " + hfThreshold().toFixed(4));
+      }
+      hfFinish();
+      return;
+    }
+    if (HF.silentMs >= (HF.mode === "wake" ? 600 : R.waitAnswer ? 1100 : OLD_DEVICE ? 800 : 700)) hfFinish();
   }
   function hfCanSend() {
     const now = Date.now();
@@ -6361,7 +6461,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, R, THINK, thinkingAloud, hfTranscribe, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
+  window.leoDebug = { Mic, HF, P, VO, R, THINK, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
