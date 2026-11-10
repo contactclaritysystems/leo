@@ -611,7 +611,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v63</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v64</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -5474,7 +5474,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     micLog("demande d’accès au micro");
     const volStable = settings.volStable !== false;
-    const cons = { audio: { echoCancellation: !volStable, noiseSuppression: true, autoGainControl: false, channelCount: 1 } };
+    const cons = { audio: { echoCancellation: !volStable, noiseSuppression: true, autoGainControl: true, channelCount: 1 } };
     Mic.starting = navigator.mediaDevices.getUserMedia(cons).catch(() => navigator.mediaDevices.getUserMedia({ audio: true })).then((stream) => {
       Mic.stream = stream;
       Mic.ctx = ctx;
@@ -5899,7 +5899,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     hfReset();
     HF.capBarge = false;
     if (R.waitAnswer) R.waitAnswer.heard = Date.now();
-    if (R.waitAnswer && !barge && HF.mode === "convo" && peak < hfThreshold() * 1.6) {
+    if (R.waitAnswer && !barge && HF.mode === "convo" && speechMs < 350 && peak < hfThreshold() * 1.6) {
       micLog("petit bruit ignoré pendant la réflexion");
       return;
     }
