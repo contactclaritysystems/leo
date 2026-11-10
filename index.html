@@ -611,7 +611,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v62</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v63</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -2588,6 +2588,47 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     };
     return at;
   }
+  const SQ = { thr: 6e-3, frame: 240, maxPause: 0.2 };
+  function squeezer(rate) {
+    const fr = Math.round(SQ.frame * rate / 24e3), maxQ = Math.round(SQ.maxPause * rate / fr);
+    let rest = new Float32Array(0), voiced = false, quiet = 0;
+    return (f, last) => {
+      let a = f;
+      if (rest.length) {
+        a = new Float32Array(rest.length + f.length);
+        a.set(rest);
+        a.set(f, rest.length);
+      }
+      const out = [];
+      let i = 0;
+      for (; i + fr <= a.length; i += fr) {
+        let pk = 0;
+        for (let k = i; k < i + fr; k++) {
+          const v = a[k] < 0 ? -a[k] : a[k];
+          if (v > pk) pk = v;
+        }
+        if (pk >= SQ.thr) {
+          voiced = true;
+          quiet = 0;
+          out.push(a.subarray(i, i + fr));
+        } else if (voiced && ++quiet <= maxQ) out.push(a.subarray(i, i + fr));
+      }
+      rest = a.slice(i);
+      if (last && rest.length && voiced) {
+        out.push(rest);
+        rest = new Float32Array(0);
+      }
+      let n = 0;
+      for (const x of out) n += x.length;
+      const r = new Float32Array(n);
+      let o = 0;
+      for (const x of out) {
+        r.set(x, o);
+        o += x.length;
+      }
+      return r;
+    };
+  }
   function ttsRequest(seg, voice, style) {
     return fetchWithTimeout(TTS_URL, {
       method: "POST",
@@ -2595,7 +2636,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       body: JSON.stringify({ text: seg.t.slice(0, 2e3), voice, lang: seg.lang, style: style || "", format: "pcm", pace: Number(settings.rate) || 1 })
     }, 25e3);
   }
-  function voPlay(respPromise, token) {
+  function voPlay(respPromise, token, squeeze) {
     const prev = VO.chain;
     let release;
     VO.chain = new Promise((r) => {
@@ -2624,9 +2665,16 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         if (/pcm|octet|L16/i.test(type) && response.body && response.body.getReader) {
           const reader = response.body.getReader();
           let carry = null, pend = [], pendLen = 0, started = false;
-          const flush = () => {
-            if (!pendLen) return;
-            const f = new Float32Array(pendLen);
+          const sq = squeeze ? squeezer(24e3) : null;
+          const flush = (last) => {
+            if (!pendLen) {
+              if (sq && last) {
+                const t = sq(new Float32Array(0), true);
+                if (t.length) voSchedule(t, 24e3);
+              }
+              return;
+            }
+            let f = new Float32Array(pendLen);
             let o = 0;
             for (const x of pend) {
               f.set(x, o);
@@ -2634,6 +2682,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
             }
             pend = [];
             pendLen = 0;
+            if (sq) {
+              f = sq(f, last);
+              if (!f.length) return;
+            }
             const at = voSchedule(f, 24e3);
             if (!started) {
               started = true;
@@ -2664,9 +2716,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
             for (let i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
             pend.push(f);
             pendLen += n;
-            if (pendLen >= (started ? 2400 : 3600)) flush();
+            if (pendLen >= (started ? 2400 : 3600)) flush(false);
           }
-          flush();
+          flush(true);
         } else {
           const ab = await response.arrayBuffer();
           if (token !== speakToken) return;
@@ -2674,7 +2726,12 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
             const p = ctx.decodeAudioData(ab, res, rej);
             if (p && p.then) p.then(res, rej);
           });
-          voiceStartedAt(voSchedule(buf.getChannelData(0), buf.sampleRate));
+          let data = buf.getChannelData(0);
+          if (squeeze) {
+            const t = squeezer(buf.sampleRate)(data, true);
+            if (t.length) data = t;
+          }
+          voiceStartedAt(voSchedule(data, buf.sampleRate));
         }
       } finally {
         release();
@@ -2835,7 +2892,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           const reqs = segs.map((s) => opts.cache ? cachedTts(s, aiVoice, opts.style) : ttsRequest(s, aiVoice, opts.style));
           reqs.forEach((p) => p.catch(() => {
           }));
-          const plays = reqs.map((r) => voPlay(r, token));
+          const plays = reqs.map((r) => voPlay(r, token, opts.style !== "dictee"));
           plays.forEach((p) => p.catch(() => {
           }));
           for (let i = 0; i < plays.length; i++) {
@@ -3478,6 +3535,23 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           if (t.length >= 3) {
             early.text = t;
             early.promise = speak(t);
+            early.tok = speakToken;
+            early.n = 1;
+          }
+        }
+      } else if (early && early.text && early.stream && early.n < 8) {
+        const m = raw.replace(/<(score|emotion|chrono|redis|mission|res|projet|calc)>[^<]*<\/\1>/gi, "").replace(/<claps\s*\/?>/gi, "").match(/^([^<\[{|`#*]{4,}[.!?…]+)\s/);
+        if (m) {
+          const t = speechSource(cleanText(m[1])).trim();
+          const s0 = early.text.replace(/\s+/g, " "), t0 = t.replace(/\s+/g, " ");
+          if (t0.length > s0.length + 2 && t0.indexOf(s0) === 0) {
+            const add = t0.slice(s0.length).trim();
+            if (speakToken !== early.tok || HF.barged) early.stream = false;
+            else if (/[a-z0-9]/i.test(add)) {
+              early.text = t0;
+              early.n++;
+              speak(add, { keep: true });
+            }
           }
         }
       }
@@ -3537,7 +3611,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       ...conversation.map((m, i) => ({ role: m.role, content: forModel(m, i === lastDrawing) })),
       { role: "user", content: images.length ? [{ type: "text", text: sentText }, ...images.map((url) => ({ type: "image_url", image_url: { url } }))] : sentText }
     ];
-    const early = { text: "", promise: null };
+    const early = { text: "", promise: null, tok: 0, n: 0, stream: canStreamVoice() };
     HF.barged = false;
     try {
       const response = await fetchWithTimeout(FUNCTION_URL, {
@@ -3619,6 +3693,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (settings.autoRead || viaVoice || R.on) {
         const full = speechSource(reply);
         if (HF.barged) {
+        } else if (early.text && speakToken !== early.tok) {
         } else if (early.text) {
           const rest = restAfter(full, early.text);
           if (rest) speak(rest, canStreamVoice() ? { keep: true } : { keep: true, after: early.promise });
@@ -6462,7 +6537,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, R, THINK, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
+  window.leoDebug = { Mic, HF, P, VO, R, THINK, squeezer, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
