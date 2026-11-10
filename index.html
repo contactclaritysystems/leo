@@ -611,7 +611,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v64</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v65</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -5636,6 +5636,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     HF.speechMs = 0;
     HF.spec = null;
     HF.partialAt = 0;
+    HF.stab = null;
+    HF.partialGen = (HF.partialGen || 0) + 1;
   }
   function hfIdleStatus() {
     if (!HF.on || HF.testOnly || !R.on) return;
@@ -5757,14 +5759,18 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (!HF.partialBusy && HF.capMs - HF.partialAt >= 1e3 && HF.silentMs < 300) {
       HF.partialAt = HF.capMs;
       HF.partialBusy = true;
+      const at = HF.capMs, gen = HF.partialGen;
       sttRequest(encodeWav(HF.buf, Mic.rate), "talk").then((t) => {
-        if (HF.capturing) hfLive(t);
+        if (HF.capturing && gen === HF.partialGen) {
+          hfLive(t);
+          hfStable(t, at);
+        }
       }, () => {
       }).then(() => {
         HF.partialBusy = false;
       });
     }
-    const maxCap = activeDictee && activeDictee.active() ? 15e3 : 1e4;
+    const maxCap = activeDictee && activeDictee.active() ? 15e3 : 8e3;
     if (HF.capMs >= maxCap) {
       const avg = HF.sumRms / Math.max(1, HF.nRms);
       if (HF.speechMs > HF.capMs * 0.85) {
@@ -5775,6 +5781,22 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       return;
     }
     if (HF.silentMs >= (HF.mode === "wake" ? 600 : R.waitAnswer ? 1100 : OLD_DEVICE ? 800 : 700)) hfFinish();
+  }
+  function hfStable(t, at) {
+    const k = String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    if (!k || HALLU_RE.test(t)) {
+      HF.stab = null;
+      return;
+    }
+    if (!HF.stab || HF.stab.k !== k) {
+      HF.stab = { k, at };
+      return;
+    }
+    if (at - HF.stab.at >= 1e3 && HF.speechMs >= 300) {
+      micLog("fin de phrase : les mots ne changent plus");
+      HF.spec = { p: Promise.resolve(String(t).trim()), sentAt: Date.now() };
+      hfFinish();
+    }
   }
   function hfCanSend() {
     const now = Date.now();
