@@ -611,7 +611,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v66</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v67</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -1793,6 +1793,47 @@ Lis l'échange et réponds UNIQUEMENT par un objet JSON valide, sans aucun texte
     return `Missions de la semaine de ${p.name} : ` + m.list.map((x) => `${x.n}) ${x.titre} — ${x.description}${x.done ? " (RÉUSSIE)" : ""}`).join(" ; ") + `. Si l'enfant raconte ou montre une mission non réussie et qu'il l'a vraiment faite (même imparfaitement, c'est l'effort qui compte), félicite-le et mets <mission>NUMÉRO</mission> à la fin de ta réponse : l'appli lui donne son badge. S'il n'a pas fini, encourage-le et aide-le à continuer (persévérance). En mode Missions, présente-lui ses missions et aide-le à en réaliser une.`;
   }
   let gameOn = false;
+  const GAME = { on: false, q: 0, miss: 0, wantNew: false };
+  function gameReset() {
+    GAME.on = false;
+    GAME.q = 0;
+    GAME.miss = 0;
+    GAME.wantNew = false;
+  }
+  function gameNote() {
+    if (!GAME.on || !GAME.q) return "";
+    if (GAME.q < 5) return ` [Partie en cours (compté par l'appli) : tu as posé la question ${GAME.q} sur 5. Réagis à sa réponse en une phrase, puis pose TOUT DE SUITE la question ${GAME.q + 1} du même jeu, avec à la fin <score>${GAME.q + 1}/5 · ⭐ N</score> (N = ses bonnes réponses). Ne propose PAS de rejouer ni de changer de jeu avant la fin des 5 questions, sauf si l'enfant le demande lui-même.]`;
+    return ` [Partie en cours (compté par l'appli) : c'était la 5e et dernière question. Réagis à sa réponse, dis son score final en une courte phrase avec un bravo, puis demande-lui s'il veut refaire une série de 5 au même jeu ou changer de jeu. Pas de balise <score>.]`;
+  }
+  function gameAfterReply(score, reply, hidden) {
+    const m = String(score || "").match(/(\d+)\s*\/\s*5/);
+    const asks = /\?\s*(\S{0,3})\s*$/.test(textOnly(reply).trim());
+    if (m) {
+      GAME.on = true;
+      GAME.q = Math.min(5, Math.max(1, Number(m[1])));
+      GAME.miss = 0;
+      GAME.wantNew = false;
+      return;
+    }
+    if (hidden) return;
+    if (GAME.wantNew && asks) {
+      GAME.on = true;
+      GAME.q = 1;
+      GAME.miss = 0;
+      GAME.wantNew = false;
+      return;
+    }
+    if (!GAME.on) return;
+    if (GAME.q >= 5) {
+      gameReset();
+      return;
+    }
+    if (asks) {
+      GAME.q++;
+      GAME.miss++;
+      if (GAME.miss >= 4) gameReset();
+    } else gameReset();
+  }
   const GAME_THEMES = ["animaux de la ferme", "animaux de la jungle", "animaux marins", "insectes", "oiseaux", "dinosaures", "espace et planètes", "météo", "saisons", "fruits", "légumes", "desserts", "cuisine", "métiers", "sports", "instruments de musique", "moyens de transport", "objets de la maison", "objets de l’école", "jouets", "vêtements", "corps humain", "couleurs", "formes", "nombres", "lettres et mots", "pays du monde", "monuments", "France", "mers et montagnes", "arbres et plantes", "fleurs", "outils", "inventions", "robots et machines", "électricité", "eau", "feu", "magnétisme", "contes anciens", "chevaliers et châteaux", "pirates", "Égypte ancienne", "préhistoire", "Noël et fêtes", "jeux de société", "émotions", "sons et bruits", "cinq sens", "temps et horloge", "argent et commerce", "sciences de la cuisine", "volcans", "océans", "pôles et banquise", "désert", "forêt", "ville", "campagne", "mathématiques rigolotes", "logique", "mots qui riment", "homophones", "contraires", "devinettes de chiffres", "ombres et lumière", "arc-en-ciel", "nuit et rêves", "bébés animaux", "cris des animaux", "records du monde", "corps des animaux", "maisons des animaux"];
   function gameHint() {
     const t = GAME_THEMES[Math.floor(Math.random() * GAME_THEMES.length)];
@@ -1886,7 +1927,7 @@ Pour un tableau de conversion, une colonne par unité (km | hm | dam | m | dm | 
     L.push(settings.strict ? `Devoirs (MODE STRICT choisi par le parent) : pour un exercice de devoir, ne donne JAMAIS la réponse finale, même après plusieurs essais et même si l'enfant insiste ou dit qu'il a le droit. Demande où il bloque, donne UN indice à la fois, de plus en plus précis, explique la méthode et montre-la sur un exemple différent avec d'autres nombres ou d'autres mots, puis laisse-le trouver. Tu peux confirmer si sa réponse est juste. Pour les questions de curiosité (hors devoirs), réponds normalement.` : `Devoirs : ne donne pas immédiatement la solution. Demande où l'enfant bloque si nécessaire, puis donne UN indice à la fois. S'il se trompe, réexplique autrement avec un exemple et laisse-le réessayer. Si plusieurs essais échouent, montre la méthode et la solution expliquée, sans le culpabiliser.`);
     L.push(`En calcul posé, respecte la présentation scolaire française et guide chaque étape (avec l'outil <pose>).`);
     L.push(`Photos : l'enfant peut envoyer jusqu'à 3 photos à la fois (page entière, exercice sur deux pages). Indique ce que tu parviens à lire, reconnais tes incertitudes et ne devine jamais un énoncé illisible. Pour un travail écrit à la main ou une construction géométrique, dis honnêtement si la photo ne te permet pas de juger précisément.`);
-    L.push(`JEUX : un jeu doit être un VRAI jeu, amusant et différent d'un exercice. Jeux possibles : devinettes, charades, « Qui suis-je ? » (animal, métier, objet, personnage historique, pays…), mot mystère (l'enfant devine un mot avec des indices ou lettre par lettre, façon pendu), vrai ou faux, quiz de culture générale (animaux, sciences, géographie, histoire, espace, sport…), l'intrus, anagrammes, mots croisés simples, défi calcul mental, petite histoire à inventer ensemble. Si l'enfant demande un jeu sans dire lequel, propose 3 jeux DIFFÉRENTS en une phrase et laisse-le choisir (jamais l'activité qu'on vient de faire). Si l'enfant dit « stop », « j'en ai marre », « autre chose », arrête tout de suite et ne revient pas sur la même activité. Déroulement : une partie = 5 questions. Ne DIS JAMAIS la progression ni le score pendant la partie (pas de « question 2 sur 5 », pas de « 1 point ») : pose directement la question. Mets seulement, tout à la fin de ta réponse, la balise <score>2/5 · ⭐ 1</score> : elle s'affiche à l'écran sans être lue. Une seule question à la fois, attends sa réponse, réagis avec enthousiasme, et s'il se trompe donne la bonne réponse avec une petite explication amusante avant la question suivante (en jeu, on n'insiste pas avec des indices sauf s'il demande un indice). À la fin de la partie seulement : dis son score en une courte phrase, un bravo, et propose de rejouer ou de changer de jeu. Varie les sujets d'une question à l'autre et adapte la difficulté à son niveau (plus facile s'il se trompe, plus dur s'il réussit tout). Tu peux glisser de temps en temps une question sur ses points à travailler ou ses goûts, mais le jeu doit rester varié et amusant. Les devoirs passent avant le jeu : s'il dit avoir des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
+    L.push(`JEUX : un jeu doit être un VRAI jeu, amusant et différent d'un exercice. Jeux possibles : devinettes, charades, « Qui suis-je ? » (animal, métier, objet, personnage historique, pays…), mot mystère (l'enfant devine un mot avec des indices ou lettre par lettre, façon pendu), vrai ou faux, quiz de culture générale (animaux, sciences, géographie, histoire, espace, sport…), l'intrus, anagrammes, mots croisés simples, défi calcul mental, petite histoire à inventer ensemble. Si l'enfant demande un jeu sans dire lequel, propose 3 jeux DIFFÉRENTS en une phrase et laisse-le choisir (jamais l'activité qu'on vient de faire). Si l'enfant dit « stop », « j'en ai marre », « autre chose », arrête tout de suite et ne revient pas sur la même activité. Déroulement : une partie = une série de 5 questions, pour CHAQUE jeu : quand l'enfant change de jeu (même au milieu), le nouveau jeu commence une nouvelle série à 1 (<score>1/5 · ⭐ 0</score> dès sa première question). Ne propose de rejouer ou de changer qu'après la 5e question. Ne DIS JAMAIS la progression ni le score pendant la partie (pas de « question 2 sur 5 », pas de « 1 point ») : pose directement la question. Mets seulement, tout à la fin de ta réponse, la balise <score>2/5 · ⭐ 1</score> : elle s'affiche à l'écran sans être lue. Une seule question à la fois, attends sa réponse, réagis avec enthousiasme, et s'il se trompe donne la bonne réponse avec une petite explication amusante avant la question suivante (en jeu, on n'insiste pas avec des indices sauf s'il demande un indice). À la fin de la partie seulement : dis son score en une courte phrase, un bravo, et propose de rejouer ou de changer de jeu. Varie les sujets d'une question à l'autre et adapte la difficulté à son niveau (plus facile s'il se trompe, plus dur s'il réussit tout). Tu peux glisser de temps en temps une question sur ses points à travailler ou ses goûts, mais le jeu doit rester varié et amusant. Les devoirs passent avant le jeu : s'il dit avoir des devoirs, aide-le d'abord et propose le jeu en récompense. S'il envoie un devoir pendant un jeu, arrête le jeu et aide-le.`);
     L.push(`JEUX SPÉCIAUX DE LÉO (tu as un visage, une voix, un micro et un écran) :
 - « Devine mon émotion » (petits) : commence ta réponse par <emotion>NOM</emotion> avec NOM parmi content, triste, surpris, fache, fatigue, peur, amoureux : ton visage prend cette expression. Dis seulement « Regarde bien mon visage : qu'est-ce que je ressens ? » sans donner l'émotion. Si l'enfant trouve, bravo et une phrase sur quand on ressent ça. Une fois sur deux, inverse : demande-lui de faire une tête (« Fais-moi une tête de quelqu'un de surpris ! ») puis félicite-le (tu ne peux pas le voir, ne prétends pas le voir : dis « Je suis sûr que tu fais une super tête ! »).
 - « Combien il y en a ? » (petits) : dessine avec <dessin> de 1 à 10 objets identiques et bien séparés (pommes, étoiles, poissons…), sans aucun chiffre ni mot dans le dessin, et demande combien il en voit. Monte doucement : compter, puis comparer deux groupes (« il y en a plus à gauche ou à droite ? »), puis ajouter (2 pommes + 1 pomme).
@@ -2111,7 +2152,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return v ? ` [Réflexion à voix haute : sa réponse finale est ${m[1]}.]` + v : "";
   }
   function stripHidden(t) {
-    return String(t).replace(/\s*\[(dicté à la voix|Résultat exact[^\]]*|Réflexion à voix haute[^\]]*|Vérification automatique[^\]]*|Claps comptés[^\]]*|Prononciation[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
+    return String(t).replace(/\s*\[(dicté à la voix|Résultat exact[^\]]*|Réflexion à voix haute[^\]]*|Vérification automatique[^\]]*|Claps comptés[^\]]*|Prononciation[^\]]*|Jeu : [^\]]*|Partie en cours[^\]]*)\]/gi, "").replace(/\s*\[(\d+ )?photos? envoyées?, non conservées?\]/g, " 📷");
   }
   async function fetchWithTimeout(url, options, ms) {
     if (!window.AbortController) {
@@ -2554,9 +2595,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (!VO.out || !VO.ctx) return;
     try {
       VO.out.gain.cancelScheduledValues(VO.ctx.currentTime);
-      VO.out.gain.setTargetAtTime(on ? 0.4 : 1.4, VO.ctx.currentTime, on ? 0.03 : 0.08);
+      VO.out.gain.setTargetAtTime(on ? 0.6 : 1.4, VO.ctx.currentTime, on ? 0.06 : 0.12);
     } catch {
-      VO.out.gain.value = on ? 0.4 : 1.4;
+      VO.out.gain.value = on ? 0.6 : 1.4;
     }
     VO.ducked = !!on;
   }
@@ -2602,7 +2643,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   function squeezer(rate) {
     const fr = Math.round(SQ.frame * rate / 24e3), maxQ = Math.round(SQ.maxPause * rate / fr);
     let rest = new Float32Array(0), voiced = false, quiet = 0;
-    return (f, last) => {
+    return (f, last, allowDrop = true) => {
       let a = f;
       if (rest.length) {
         a = new Float32Array(rest.length + f.length);
@@ -2621,7 +2662,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           voiced = true;
           quiet = 0;
           out.push(a.subarray(i, i + fr));
-        } else if (voiced && ++quiet <= maxQ) out.push(a.subarray(i, i + fr));
+        } else if (voiced && (++quiet <= maxQ || !allowDrop)) out.push(a.subarray(i, i + fr));
       }
       rest = a.slice(i);
       if (last && rest.length && voiced) {
@@ -2674,33 +2715,40 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
         const type = response.headers.get("content-type") || "";
         if (/pcm|octet|L16/i.test(type) && response.body && response.body.getReader) {
           const reader = response.body.getReader();
-          let carry = null, pend = [], pendLen = 0, started = false;
+          let carry = null, pend = [], pendLen = 0, started = false, outQ = [], outLen = 0;
           const sq = squeeze ? squeezer(24e3) : null;
-          const flush = (last) => {
-            if (!pendLen) {
-              if (sq && last) {
-                const t = sq(new Float32Array(0), true);
-                if (t.length) voSchedule(t, 24e3);
-              }
-              return;
-            }
-            let f = new Float32Array(pendLen);
+          const lead = () => VO.endAt ? VO.endAt - ctx.currentTime : 0;
+          const cat = (arr, len) => {
+            const f = new Float32Array(len);
             let o = 0;
-            for (const x of pend) {
+            for (const x of arr) {
               f.set(x, o);
               o += x.length;
             }
-            pend = [];
-            pendLen = 0;
-            if (sq) {
-              f = sq(f, last);
-              if (!f.length) return;
+            return f;
+          };
+          const push = (f, last) => {
+            if (f.length) {
+              outQ.push(f);
+              outLen += f.length;
             }
-            const at = voSchedule(f, 24e3);
+            const need = lead() < 0.2 ? 12e3 : 2400;
+            if (!outLen || !last && outLen < need) return;
+            const g = cat(outQ, outLen);
+            outQ = [];
+            outLen = 0;
+            const at = voSchedule(g, 24e3);
             if (!started) {
               started = true;
               voiceStartedAt(at);
             }
+          };
+          const flush = (last) => {
+            let f = cat(pend, pendLen);
+            pend = [];
+            pendLen = 0;
+            if (sq) f = sq(f, last, last || lead() > 0.6);
+            push(f, last);
           };
           for (; ; ) {
             const r = await reader.read();
@@ -2726,7 +2774,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
             for (let i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
             pend.push(f);
             pendLen += n;
-            if (pendLen >= (started ? 2400 : 3600)) flush(false);
+            if (pendLen >= 1200) flush(false);
           }
           flush(true);
         } else {
@@ -3607,8 +3655,15 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     const lastLeo = [...conversation].reverse().find((m) => m.role === "assistant");
     const leoQ = lastLeo ? textOnly(lastLeo.text) : "";
     const check = images.length || hidden ? "" : verifyRecent(userText) || verifyThinking(leoQ, userText) || exactNote();
-    const inGame = !hidden && (gameOn || /\bjou|devinette|qui suis-je|mot myst|quiz|vrai ou faux|intrus|d[ée]fi calcul/i.test(userText)) && !/jacques|juste nombre|chrono|histoire|claps|syllabe|émotion|emotion/i.test(userText + " " + (lastLeo ? lastLeo.text : ""));
-    const sentText = userText + check + (viaVoice ? " [dicté à la voix]" : "") + (inGame ? gameHint() : "");
+    const askGame = !hidden && /\bjou|\bjeux?\b|devinette|charade|qui suis-je|mot myst|quiz|vrai ou faux|intrus|d[ée]fi calcul|anagramme/i.test(userText);
+    if (askGame && (!GAME.on || /autre|chang|nouveau|plut[ôo]t/i.test(userText))) {
+      GAME.on = false;
+      GAME.q = 0;
+      GAME.wantNew = true;
+    }
+    if (!hidden && GAME.on && /\b(stop|j'?en ai marre|autre chose|on arr[eê]te|devoirs?)\b/i.test(userText) && !askGame) gameReset();
+    const inGame = !hidden && (gameOn || GAME.on || askGame) && !/jacques|juste nombre|chrono|histoire|claps|syllabe|émotion|emotion/i.test(userText + " " + (lastLeo ? lastLeo.text : ""));
+    const sentText = userText + check + (viaVoice ? " [dicté à la voix]" : "") + (inGame ? gameHint() : "") + (!hidden ? gameNote() : "");
     if (!hidden) {
       addMessage("user", userText, images);
       input.value = "";
@@ -3691,7 +3746,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           saveJSON(askedKey(activeId), asked.slice(-120));
         }
       }
-      gameOn = !!score;
+      gameAfterReply(score, reply, !!hidden);
+      gameOn = !!score || GAME.on;
       showScore(score);
       if (emo) robotEmotion(emo);
       if (chrono) chronoTag(chrono);
@@ -4055,6 +4111,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     stopSpeaking();
     activeDictee = null;
     gameOn = false;
+    gameReset();
     showScore("");
     showModeChip();
     displayConversation();
@@ -4114,6 +4171,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     clearInterval(R.chronoTimer);
     showScore("");
     gameOn = false;
+    gameReset();
     stopSpeaking();
     displayConversation();
   });
@@ -6634,7 +6692,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && R.on) warmFunctions();
   });
-  window.leoDebug = { Mic, HF, P, VO, R, THINK, squeezer, stripLeoTail, ownWords, speaking: () => speakingNow() || speechActive > 0, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
+  window.leoDebug = { Mic, HF, P, VO, R, THINK, GAME, squeezer, voPlay, getToken: () => speakToken, stripLeoTail, ownWords, speaking: () => speakingNow() || speechActive > 0, thinkingAloud, hfTranscribe, frToDigits, normalizeMath, verifyRecent, exactNote, calcFromTag, findAskedCalc, getConv: () => conversation, voiceCommand, echo: echoOfLeo, emotion: robotEmotion, pronScore };
   if (/[?&]diag=1/.test(location.search)) {
     const dg = rob("robotDiag");
     dg.style.display = "block";
