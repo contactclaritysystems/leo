@@ -395,6 +395,46 @@
   .prow .pbar { height: 10px; border-radius: 6px; background: #e5e7eb; overflow: hidden; }
   .prow .pfill { height: 100%; border-radius: 6px; }
   .prow .pnote { font-size: 13px; color: #475569; margin-top: 3px; }
+
+  /* ---------- v68 : écran noir, grand visage, commandes sur le côté (apparence seulement) ---------- */
+  body.robot-on, #robot { background: #000 !important; }
+  #robot::before, #robot::after { display: none !important; }
+  .face .brow path, .face .nose { filter: drop-shadow(0 0 6px rgba(80,140,255,.6)); }
+  .face .mouth, .face.happy .mouth, .face.excited .mouth { stroke: #9cc8ff; stroke-width: 3; filter: none; }
+  .face .mouthG { filter: drop-shadow(0 0 10px rgba(80,140,255,.55)); }
+  .face .happyEye { filter: drop-shadow(0 0 6px rgba(80,140,255,.6)); }
+  .face .blush { opacity: .55; mix-blend-mode: screen; }
+  .face.happy .blush, .face.excited .blush { opacity: .85; }
+  .face .dots, .face .zzz { fill: #7cb8ff; }
+  #robotStatus { color: #9fb4d8 !important; text-shadow: none; }
+  #robotHeard { text-shadow: none; }
+  #robotSub { text-shadow: none; }
+  /* prénom au-dessus, menu en dessous, en haut à gauche, discrets */
+  #robot .rtop { right: auto; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 10px; z-index: 2; }
+  #robot .rtop .rmid { order: -1; }
+  #robot .rtop .who { height: 32px; padding: 0 10px; font-size: 13px; opacity: .6; background: rgba(255,255,255,.06) !important; }
+  #robot .rtop .who #robotName { font-size: 13px; }
+  #robotMenuBtn { opacity: .6; }
+  #robotMenu { top: calc(102px + env(safe-area-inset-top)); }
+  @media (orientation: landscape) {
+    /* le visage prend toute la hauteur */
+    #robot:not(.with-panel) #robotFaceBox { position: absolute; left: 50%; top: 50%; width: min(117vh, 100vw) !important; width: min(117dvh, 100vw) !important; margin: 0 !important; transform: translate(-50%, -50%); z-index: 0; }
+    /* boutons en colonne sur le côté droit */
+    #robot:not(.with-panel) .rctl { left: auto; right: calc(18px + env(safe-area-inset-right)); top: 50%; bottom: auto; transform: translateY(-50%); flex-direction: column; z-index: 2; }
+    #robot:not(.with-panel) .rctl button { margin: 10px 0; }
+    /* textes en bas, petits */
+    #robot:not(.with-panel) #robotStatus { position: absolute; left: calc(24px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom)); width: 22vw; margin: 0 !important; text-align: left; font-size: 17px; z-index: 1; }
+    #robot:not(.with-panel) #robotSub { position: absolute; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(50vw, 640px); margin: 0 !important; font-size: 20px; z-index: 1; }
+    #robot:not(.with-panel) #robotHeard { position: absolute; left: calc(24px + env(safe-area-inset-left)); bottom: calc(52px + env(safe-area-inset-bottom)); width: 22vw; margin: 0 !important; text-align: left; font-size: 15px; z-index: 1; }
+    #robot:not(.with-panel) #robotHeard.live { font-size: 18px; }
+    .rbar { left: 70px; right: 90px; }
+    #robot.with-panel .rctl { right: auto; width: 46vw; }   /* avec un quiz ou un dessin : boutons sous le visage, pas cachés par le panneau */
+  }
+
+  /* ---------- v69 : sous le visage, seulement ce que dit l'enfant et ce que dit Léo ---------- */
+  #robotHeard.ignored { display: none !important; }
+  #robotStatus:not(.err) { visibility: hidden !important; }
+  #robotStatus.err { color: #fca5a5 !important; }
 </style>
 </head>
 <body>
@@ -458,11 +498,11 @@
         <linearGradient id="lidShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0b1a52" stop-opacity=".45"/><stop offset="32%" stop-color="#0b1a52" stop-opacity="0"/></linearGradient>
         <radialGradient id="pupilGrad" cx="45%" cy="40%" r="60%"><stop offset="0%" stop-color="#1b2a63"/><stop offset="100%" stop-color="#050a1f"/></radialGradient>
         <radialGradient id="irisGlow" cx="50%" cy="85%" r="55%"><stop offset="0%" stop-color="#a5f3fc" stop-opacity=".75"/><stop offset="100%" stop-color="#a5f3fc" stop-opacity="0"/></radialGradient>
-        <linearGradient id="browGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3550b8"/><stop offset="100%" stop-color="#0b1640"/></linearGradient>
-        <linearGradient id="noseGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2c43a0"/><stop offset="100%" stop-color="#0b1640"/></linearGradient>
-        <linearGradient id="mouthGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#050a24"/><stop offset="100%" stop-color="#22307a"/></linearGradient>
+        <linearGradient id="browGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7cb8ff"/><stop offset="100%" stop-color="#2f6bff"/></linearGradient>
+        <linearGradient id="noseGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#9cc8ff"/><stop offset="100%" stop-color="#2f6bff"/></linearGradient>
+        <linearGradient id="mouthGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a2f8a"/><stop offset="100%" stop-color="#3f6dff"/></linearGradient>
         <radialGradient id="tongueGrad" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="#fbcfe8"/><stop offset="45%" stop-color="#f472b6"/><stop offset="100%" stop-color="#be185d"/></radialGradient>
-        <radialGradient id="blushGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#f9a8d4" stop-opacity=".85"/><stop offset="100%" stop-color="#f9a8d4" stop-opacity="0"/></radialGradient>
+        <radialGradient id="blushGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#ff8cc6" stop-opacity=".9"/><stop offset="100%" stop-color="#ff8cc6" stop-opacity="0"/></radialGradient>
         <clipPath id="eyeClip"><ellipse rx="52" ry="58"/></clipPath>
         <clipPath id="mouthClip"><path id="mouthClipPath" d="M158 262 Q200 270 242 262 Q200 300 158 262Z"/></clipPath>
       </defs>
@@ -611,7 +651,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v67</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v69</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -4479,7 +4519,10 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   const CAN_RECORD = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.MediaRecorder || window.AudioContext || window.webkitAudioContext));
   const rob = (id) => document.getElementById(id);
   function robotStatus(t) {
-    rob("robotStatus").textContent = t || "";
+    const el = rob("robotStatus");
+    el.textContent = t || "";
+    // v69 : seuls les vrais problèmes (micro, réseau) restent affichés ; le reste est caché
+    el.classList.toggle("err", /Oups|refusé|Impossible|pas réussi|^🎤 /.test(t || ""));
   }
   function audioCtx() {
     if (!R.ctx) {
@@ -5770,7 +5813,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           if (!HF.testOnly && R.on) {
             const h = rob("robotHeard");
             h.className = "live";
-            h.textContent = "🎙️ …";
+            h.textContent = "";
           }
         }
       } else {
@@ -5816,7 +5859,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
           if (!HF.testOnly && R.on) {
             const h = rob("robotHeard");
             h.className = "live";
-            h.textContent = "🎙️ …";
+            h.textContent = "";
           }
         }
       } else {
