@@ -651,7 +651,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v69</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v71</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -770,7 +770,8 @@
             <option value="nova">Nova · fille douce</option>
           </select></label>
           <label>Rythme de parole (calme ← → vif) <input id="rateInput" type="range" min="0.8" max="1.3" step="0.05"></label>
-          <label>Volume de Léo (normal ← → très fort) <input id="boostInput" type="range" min="1" max="4" step="0.25"></label>
+          <label>Volume de Léo (très bas ← → fort) <input id="volInput" type="range" min="0.05" max="1" step="0.05"></label>
+          <label class="check"><input type="checkbox" id="bargeInput"><span>Couper la parole à Léo en disant « stop », « attends », « chut » ou « tais-toi ». Pendant qu'il parle, Léo n'écoute QUE ces mots-là : il ne peut pas se répondre à lui-même.</span></label>
           <label class="check"><input type="checkbox" id="volStableInput"><span>Volume stable : coupe l'anti-écho du micro (le son de Léo ne baisse plus), mais l'interrompre à la voix marche moins bien. À laisser décoché sauf si le son baisse trop.</span></label>
           <button type="button" id="testVoice" class="small-btn grey">▶️ Tester la voix</button>
           <p class="note" id="voiceTestStatus" style="color:#fbbf24"></p>
@@ -2590,6 +2591,15 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
   let speechActive = 0;
   const ttsCache = /* @__PURE__ */ new Map();
   const VO = { ctx: null, gain: null, analyser: null, endAt: 0, firstAt: 0, sources: [], chain: Promise.resolve() };
+  // v70 : volume réel de Léo (le compresseur remontait le son : on règle donc APRÈS lui)
+  function leoVol() {
+    const v = Number(settings.vol);
+    return settings.vol == null || !isFinite(v) ? 0.6 : Math.min(1, Math.max(0.05, v));
+  }
+  function applyLeoVol() {
+    try { if (VO.out && VO.ctx) { VO.out.gain.cancelScheduledValues(VO.ctx.currentTime); VO.out.gain.value = (VO.ducked ? 0.6 : 1.4) * leoVol(); } } catch {}
+    try { if (R.outGain) R.outGain.gain.value = leoVol(); } catch {}
+  }
   function voiceBoost() {
     return Math.min(4, Math.max(1, Number(settings.boost) || 2.5));
   }
@@ -2618,13 +2628,13 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       } catch {
       }
       VO.out = VO.ctx.createGain();
-      VO.out.gain.value = 1.4;
+      VO.out.gain.value = 1.4 * leoVol();
       VO.analyser = VO.ctx.createAnalyser();
       VO.analyser.fftSize = 512;
       VO.gain.connect(VO.comp);
-      VO.comp.connect(VO.out);
-      VO.out.connect(VO.analyser);
-      VO.analyser.connect(VO.ctx.destination);
+      VO.comp.connect(VO.analyser);
+      VO.analyser.connect(VO.out);
+      VO.out.connect(VO.ctx.destination);
     }
     return VO.ctx;
   }
@@ -2635,9 +2645,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (!VO.out || !VO.ctx) return;
     try {
       VO.out.gain.cancelScheduledValues(VO.ctx.currentTime);
-      VO.out.gain.setTargetAtTime(on ? 0.6 : 1.4, VO.ctx.currentTime, on ? 0.06 : 0.12);
+      VO.out.gain.setTargetAtTime((on ? 0.6 : 1.4) * leoVol(), VO.ctx.currentTime, on ? 0.06 : 0.12);
     } catch {
-      VO.out.gain.value = on ? 0.6 : 1.4;
+      VO.out.gain.value = (on ? 0.6 : 1.4) * leoVol();
     }
     VO.ducked = !!on;
   }
@@ -2892,7 +2902,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (voice) u.voice = voice;
       u.rate = rate;
       u.pitch = 1.05;
-      u.volume = 1;
+      u.volume = leoVol();
       micBeforeSpeak();
       synth.speak(u);
     }
@@ -4065,7 +4075,8 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     $("mailStatus").textContent = "";
     loadVoices();
     $("rateInput").value = settings.rate;
-    $("boostInput").value = voiceBoost();
+    $("volInput").value = leoVol();
+    $("bargeInput").checked = settings.bargeIn !== false;
     $("volStableInput").checked = settings.volStable2 === true;
     $("voiceMode").value = settings.voiceMode;
     $("aiVoice").value = settings.aiVoice;
@@ -4103,7 +4114,9 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     settings.voiceMode = $("voiceMode").value;
     settings.aiVoice = $("aiVoice").value;
     settings.rate = Number($("rateInput").value) || 1;
-    settings.boost = Number($("boostInput").value) || 2.5;
+    settings.vol = Math.min(1, Math.max(0.05, Number($("volInput").value) || 0.6));
+    settings.bargeIn = $("bargeInput").checked;
+    applyLeoVol();
     {
       const vs = $("volStableInput").checked;
       if (vs !== (settings.volStable2 === true)) {
@@ -4545,8 +4558,11 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const src = ctx.createMediaElementSource(player);
       R.outAnalyser = ctx.createAnalyser();
       R.outAnalyser.fftSize = 512;
+      R.outGain = ctx.createGain();
+      R.outGain.gain.value = leoVol();
       src.connect(R.outAnalyser);
-      R.outAnalyser.connect(ctx.destination);
+      R.outAnalyser.connect(R.outGain);
+      R.outGain.connect(ctx.destination);
     } catch {
     }
   }
@@ -5785,6 +5801,12 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       HF.lastTalk = now;
       if (HF.mode === "convo") HF.convoUntil = now + 25e3;
     }
+    // v71 : pendant que Léo parle, on n'écoute que pour « stop » (voir realStop) ; juste après sa phrase (0,7 s), on ignore l'écho de la pièce
+    if (!HF.testOnly && !HF.capturing && (talking && settings.bargeIn === false || !talking && now - (HF.lastTalk || 0) < 700)) {
+      HF.pre = [];
+      HF.bargeN = 0;
+      return;
+    }
     const nearTalk = talking || now - (HF.lastTalk || 0) < 1500;
     if (!HF.capturing && nearTalk) {
       const trig = talking ? Math.max(0.02, HF.echo * HF.bargeK) : Math.max(hfThreshold(), HF.echo * 1.5);
@@ -5922,9 +5944,22 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     return nzw(t).filter((w) => !L.has(w) && !FILL1_RE.test(w));
   }
   const STOP_RE = /^\s*(stop+|arr[eê]te|attends?|chut|tais[- ]toi|c['’]est bon|ok (c['’]est )?bon|[çc]a va|l[ée]o,? (stop|arr[eê]te|attends?))\b[\s!.,…]*$/i;
+  // v71 : vrai ordre d'arrêt = phrase courte faite seulement de mots d'arrêt, et le mot clé n'est pas dans ce que Léo dit
+  const STOP_WORDS = new Set(["stop", "stopp", "stoppe", "arrete", "arret", "toi", "attends", "attend", "chut", "tais", "pause", "silence", "c", "est", "bon", "ok", "leo", "allez"]);
+  const STOP_KEYS = /^(stop+e?|arrete|attends?|chut+|tais|pause|silence|bon)$/;
+  function realStop(t) {
+    const W = nzw(t).filter((w) => !FILL1_RE.test(w));
+    if (!W.length || W.length > 5) return false;
+    if (!W.every((w) => STOP_WORDS.has(w) || /^(stop+e?|chut+)$/.test(w))) return false;
+    const keys = W.filter((w) => STOP_KEYS.test(w));
+    if (!keys.length) return false;
+    const L = new Set(leoWordsNow());
+    return keys.some((k) => !L.has(k));
+  }
   function hfConfirmBarge(t) {
     if (!HF.soft || !t || HALLU_RE.test(t)) return;
-    if (STOP_RE.test(t) || ownWords(t).length >= 1) {
+    const rep2 = R.expectEn && Date.now() < R.expectEn.until;
+    if (realStop(t) || rep2 && ownWords(t).length >= 1) {
       micLog("interruption confirmée : « " + t + " »");
       HF.soft = false;
       HF.barged = true;
@@ -6170,7 +6205,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     const repeating = R.expectEn && Date.now() < R.expectEn.until;
     if (barge && !test && (speakingNow() || speechActive > 0)) {
-      if (!text || text.length < 2 || HALLU_RE.test(text) || !repeating && !STOP_RE.test(text) && ownWords(text).length === 0) {
+      if (!text || text.length < 2 || HALLU_RE.test(text) || (repeating ? ownWords(text).length === 0 : !realStop(text))) {
         hfFalseBarge();
         return;
       }
@@ -6179,7 +6214,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       stopSpeaking();
     }
     if (barge) HF.falseBarge = 0;
-    if (!test && (barge || near) && (STOP_RE.test(text) || STOP_RE.test(stripLeoTail(text)) || STOP_RE.test(ownWords(text).join(" ")))) {
+    if (!test && (barge || near) && (realStop(text) || STOP_RE.test(text) || STOP_RE.test(stripLeoTail(text)) || STOP_RE.test(ownWords(text).join(" ")))) {
       R.awaitingVoice = 0;
       R.lastActivity = Date.now();
       hfSetMode("convo");
