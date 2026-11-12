@@ -651,7 +651,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v71</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v72</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -6098,7 +6098,7 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     if (R.on) {
       const h = rob("robotHeard");
       h.className = "";
-      h.textContent = (h.dataset.said ? "🗣️ " + h.dataset.said + "  " : "") + c;
+      h.textContent = h.dataset.said ? "🗣️ " + h.dataset.said : "";
     }
   }
   function hfDayCount(add) {
@@ -6204,14 +6204,14 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       if (l) l.textContent = text ? "✍️ « " + text + " »" : "";
     }
     const repeating = R.expectEn && Date.now() < R.expectEn.until;
-    if (barge && !test && (speakingNow() || speechActive > 0)) {
+    if (barge && !test) {
       if (!text || text.length < 2 || HALLU_RE.test(text) || (repeating ? ownWords(text).length === 0 : !realStop(text))) {
         hfFalseBarge();
         return;
       }
       micLog("interruption confirmée : « " + text + " »");
       HF.barged = true;
-      stopSpeaking();
+      if (speakingNow() || speechActive > 0) stopSpeaking();
     }
     if (barge) HF.falseBarge = 0;
     if (!test && (barge || near) && (realStop(text) || STOP_RE.test(text) || STOP_RE.test(stripLeoTail(text)) || STOP_RE.test(ownWords(text).join(" ")))) {
@@ -6222,6 +6222,14 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
       const h = rob("robotHeard");
       h.className = "";
       h.textContent = "🗣️ " + text;
+      return;
+    }
+    if (!test && !repeating && /^\W*(merci|merci beaucoup|au revoir|bonne nuit|a bientot|à bientôt)(,? (l[ée]o|à tous|a tous))?\W*$/i.test(text)) {
+      micLog("ignoré (invention probable sur du bruit) : « " + text + " »");
+      if (mode === "convo") {
+        R.awaitingVoice = 0;
+        hfIdleStatus();
+      }
       return;
     }
     if (!test && near && !repeating && text) text = stripLeoTail(text);
