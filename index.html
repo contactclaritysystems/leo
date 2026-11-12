@@ -651,7 +651,7 @@
 <dialog id="settingsDialog">
   <form id="settingsForm">
     <div class="sheet-head">
-      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v72</span></h2>
+      <h2>⚙️ Espace parent <span class="note" style="font-weight:400">· Léo v73</span></h2>
       <div class="tabs">
         <button type="button" class="tab" data-tab="bilan">📊 Bilan</button>
         <button type="button" class="tab" data-tab="enfant">👤 Enfant</button>
@@ -6040,9 +6040,11 @@ Ne remplis que les champs utiles. "consignes" : quand l'enfant te demande de cha
     }
     return ` [Prononciation vérifiée par l'appli : attendu « ${e.target} », entendu « ${heard} » → ${verdict} (${sc} %)]`;
   }
+  // v73 : on N'ENVOIE PLUS la question de Léo à la transcription. Le modèle de transcription (gpt-4o-transcribe)
+  // est une IA : avec « Combien font 7 + 5 ? » dans sa consigne, sur du silence ou de l'écho, il « répondait »
+  // lui-même (« 11 », « douze », « Merci Léo »)… et Léo croyait que l'enfant avait parlé.
   function sttContext() {
-    const last = [...conversation].reverse().find((m) => m.role === "assistant");
-    return last ? textOnly(last.text).replace(/\s+/g, " ").slice(-300) : "";
+    return "";
   }
   function sttRequest(blob, purpose) {
     (HF.sent = HF.sent || []).push(Date.now());
